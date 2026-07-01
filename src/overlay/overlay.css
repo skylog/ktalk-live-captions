@@ -1,13 +1,15 @@
 :root {
   color-scheme: dark;
   font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --overlay-bg: rgba(7, 11, 16, 0.82);
-  --overlay-panel: rgba(16, 22, 31, 0.92);
-  --overlay-border: rgba(152, 181, 207, 0.18);
+  --overlay-bg: rgba(8, 11, 18, 0.84);
+  --overlay-panel: rgba(16, 22, 31, 0.94);
+  --overlay-border: rgba(152, 181, 207, 0.2);
   --overlay-text: #f4f8fb;
   --overlay-muted: #9dadbb;
   --overlay-accent: #7ce4da;
   --overlay-accent-strong: #bdfaf3;
+  --overlay-warning: #f5c96c;
+  --overlay-danger: #f08d8d;
   --overlay-shadow: 0 24px 60px rgba(0, 0, 0, 0.42);
 }
 
@@ -23,8 +25,9 @@ body {
 
 body {
   background:
-    radial-gradient(circle at top, rgba(124, 228, 218, 0.12), transparent 38%),
-    linear-gradient(180deg, rgba(3, 7, 10, 0.94), rgba(8, 12, 17, 0.98));
+    radial-gradient(circle at 14% 8%, rgba(124, 228, 218, 0.18), transparent 28%),
+    radial-gradient(circle at 92% 14%, rgba(126, 154, 255, 0.12), transparent 24%),
+    linear-gradient(180deg, rgba(3, 7, 10, 0.95), rgba(8, 12, 17, 0.99));
   color: var(--overlay-text);
 }
 
@@ -37,6 +40,21 @@ button {
   padding: 12px;
   display: grid;
   place-items: end start;
+  position: relative;
+  isolation: isolate;
+}
+
+.overlay-shell::before {
+  content: "";
+  position: absolute;
+  inset: auto auto 10px 10px;
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(124, 228, 218, 0.15), transparent 68%);
+  filter: blur(6px);
+  pointer-events: none;
+  z-index: -1;
 }
 
 .overlay-chip,
@@ -49,10 +67,22 @@ button {
 
 .overlay-chip {
   width: min(100%, 320px);
-  border-radius: 999px;
+  border-radius: 18px;
   padding: 12px 14px;
   display: grid;
   gap: 3px;
+  position: relative;
+  overflow: hidden;
+}
+
+.overlay-chip::after,
+.overlay-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 40%);
+  pointer-events: none;
 }
 
 .overlay-chip__label {
@@ -70,9 +100,32 @@ button {
 .overlay-panel {
   width: min(100%, 420px);
   border-radius: 22px;
-  padding: 16px;
+  padding: 18px;
   display: grid;
   gap: 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+.overlay-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, rgba(124, 228, 218, 0.9), rgba(124, 228, 218, 0.25));
+}
+
+.overlay-shell[data-overlay-theme="reconnecting"] .overlay-panel::before {
+  background: linear-gradient(90deg, rgba(245, 201, 108, 0.95), rgba(245, 201, 108, 0.24));
+}
+
+.overlay-shell[data-overlay-theme="paused"] .overlay-panel::before {
+  background: linear-gradient(90deg, rgba(245, 201, 108, 0.95), rgba(255, 208, 117, 0.24));
+}
+
+.overlay-shell[data-overlay-theme="idle"] .overlay-panel::before {
+  background: linear-gradient(90deg, rgba(152, 181, 207, 0.75), rgba(152, 181, 207, 0.18));
 }
 
 .overlay-head {
@@ -84,7 +137,7 @@ button {
 
 .overlay-head h1 {
   margin: 4px 0 0;
-  font-size: 18px;
+  font-size: 19px;
   line-height: 1.15;
 }
 
@@ -96,7 +149,8 @@ button {
   border: 1px solid rgba(124, 228, 218, 0.24);
   background: rgba(124, 228, 218, 0.12);
   color: var(--overlay-accent-strong);
-  padding: 6px 10px;
+  padding: 7px 11px;
+  white-space: nowrap;
 }
 
 .overlay-body {
@@ -111,7 +165,7 @@ button {
 }
 
 .caption-line--primary {
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 700;
 }
 
@@ -146,6 +200,7 @@ button {
 .overlay-button--primary {
   border-color: rgba(124, 228, 218, 0.34);
   background: linear-gradient(180deg, rgba(124, 228, 218, 0.22), rgba(124, 228, 218, 0.12));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
 }
 
 [data-overlay-state="idle"] .overlay-panel {
@@ -161,8 +216,8 @@ button {
 }
 
 [data-overlay-state="paused"] .overlay-status {
-  border-color: rgba(242, 198, 108, 0.28);
-  background: rgba(242, 198, 108, 0.12);
+  border-color: rgba(245, 201, 108, 0.28);
+  background: rgba(245, 201, 108, 0.12);
   color: #ffe2a0;
 }
 
@@ -170,6 +225,26 @@ button {
   border-color: rgba(239, 138, 138, 0.28);
   background: rgba(239, 138, 138, 0.12);
   color: #ffc2c2;
+}
+
+[data-overlay-state="reconnecting"] .overlay-body {
+  gap: 12px;
+}
+
+[data-overlay-state="paused"] .overlay-panel {
+  border-color: rgba(245, 201, 108, 0.24);
+}
+
+[data-overlay-state="reconnecting"] .overlay-panel {
+  border-color: rgba(239, 138, 138, 0.24);
+}
+
+[data-overlay-state="idle"] .overlay-chip {
+  border-style: dashed;
+}
+
+[data-overlay-state="idle"] .overlay-chip__label {
+  color: var(--overlay-accent-strong);
 }
 
 @media (max-width: 480px) {
@@ -183,5 +258,9 @@ button {
 
   .overlay-actions {
     flex-direction: column;
+  }
+
+  .overlay-chip {
+    width: 100%;
   }
 }
