@@ -15,11 +15,106 @@ const state: SidebarState = {
   session: null,
 };
 
-const transcriptText = (segments: ReadonlyArray<TranscriptSegment>): string =>
-  segments.map((segment) => `${formatTime(segment.timestamp)} ${segment.text}`).join("\n");
+function transcriptText(segments: ReadonlyArray<TranscriptSegment>): string {
+  return segments.map((segment) => `${formatTime(segment.timestamp)} ${segment.text}`).join("\n");
+}
 
-const transcriptAsMarkdown = (segments: ReadonlyArray<TranscriptSegment>): string =>
-  segments.map((segment) => `- ${formatTime(segment.timestamp)} ${segment.text}`).join("\n");
+function transcriptAsMarkdown(segments: ReadonlyArray<TranscriptSegment>): string {
+  return segments.map((segment) => `- ${formatTime(segment.timestamp)} ${segment.text}`).join("\n");
+}
+
+function formatDuration(startedAt: number | null, endedAt: number | null): string {
+  if (startedAt === null) {
+    return "Unknown";
+  }
+
+  const end = endedAt ?? Date.now();
+  const durationMs = Math.max(0, end - startedAt);
+  const totalSeconds = Math.max(1, Math.round(durationMs / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${seconds}s`;
+  }
+
+  if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  }
+
+  return `${seconds}s`;
+}
+
+function formatSessionDate(startedAt: number | null): string {
+  if (startedAt === null) {
+    return "Unknown";
+  }
+
+  return new Intl.DateTimeFormat([], {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(startedAt);
+}
+
+function formatSessionSource(session: SessionSnapshot | null): string {
+  switch (session?.session.source) {
+    case "microphone":
+      return "Microphone";
+    case "tab-audio":
+      return "Tab audio";
+    default:
+      return "Unknown";
+  }
+}
+
+function getSessionExportMeta(session: SessionSnapshot | null): {
+  sessionDate: string;
+  duration: string;
+  source: string;
+} {
+  const startedAt = session?.session.startedAt ?? session?.transcript[0]?.timestamp ?? null;
+  const endedAt = session?.session.endedAt ?? null;
+
+  return {
+    sessionDate: formatSessionDate(startedAt),
+    duration: formatDuration(startedAt, endedAt),
+    source: formatSessionSource(session),
+  };
+}
+
+function buildTxtExport(session: SessionSnapshot | null): string {
+  const transcript = session?.transcript ?? [];
+  const meta = getSessionExportMeta(session);
+  const transcriptBody = transcript.length > 0 ? transcriptText(transcript) : "No transcript captured yet.";
+
+  return [
+    "Kontur Talk Live Captions",
+    `Session date: ${meta.sessionDate}`,
+    `Duration: ${meta.duration}`,
+    `Source: ${meta.source}`,
+    "",
+    transcriptBody,
+  ].join("\n");
+}
+
+function buildMarkdownExport(session: SessionSnapshot | null): string {
+  const transcript = session?.transcript ?? [];
+  const meta = getSessionExportMeta(session);
+  const transcriptBody = transcriptAsMarkdown(transcript);
+
+  return [
+    "# Kontur Talk Live Captions",
+    "",
+    `- Session date: ${meta.sessionDate}`,
+    `- Duration: ${meta.duration}`,
+    `- Source: ${meta.source}`,
+    "",
+    "## Transcript",
+    "",
+    transcriptBody.length > 0 ? transcriptBody : "- No transcript captured yet.",
+  ].join("\n");
+}
 
 function formatTime(timestamp: number): string {
   return new Date(timestamp).toLocaleTimeString([], {
@@ -268,10 +363,10 @@ function setupInteractions(shell: HTMLElement): void {
         await copyText(transcriptText(transcript));
         break;
       case "export-txt":
-        dispatchExport(shell, "txt", transcriptText(transcript));
+        dispatchExport(shell, "txt", buildTxtExport(state.session));
         break;
       case "export-markdown":
-        dispatchExport(shell, "markdown", transcriptAsMarkdown(transcript));
+        dispatchExport(shell, "markdown", buildMarkdownExport(state.session));
         break;
       case "focus-latest":
         dispatchSimple(shell, "focus-latest");
