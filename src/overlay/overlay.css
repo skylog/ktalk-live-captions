@@ -1,0 +1,187 @@
+:root {
+  color-scheme: dark;
+  font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --overlay-bg: rgba(7, 11, 16, 0.82);
+  --overlay-panel: rgba(16, 22, 31, 0.92);
+  --overlay-border: rgba(152, 181, 207, 0.18);
+  --overlay-text: #f4f8fb;
+  --overlay-muted: #9dadbb;
+  --overlay-accent: #7ce4da;
+  --overlay-accent-strong: #bdfaf3;
+  --overlay-shadow: 0 24px 60px rgba(0, 0, 0, 0.42);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background:
+    radial-gradient(circle at top, rgba(124, 228, 218, 0.12), transparent 38%),
+    linear-gradient(180deg, rgba(3, 7, 10, 0.94), rgba(8, 12, 17, 0.98));
+  color: var(--overlay-text);
+}
+
+button {
+  font: inherit;
+}
+
+.overlay-shell {
+  min-height: 100vh;
+  padding: 12px;
+  display: grid;
+  place-items: end start;
+}
+
+.overlay-chip,
+.overlay-panel {
+  border: 1px solid var(--overlay-border);
+  background: linear-gradient(180deg, var(--overlay-panel), var(--overlay-bg));
+  box-shadow: var(--overlay-shadow);
+  backdrop-filter: blur(16px);
+}
+
+.overlay-chip {
+  width: min(100%, 320px);
+  border-radius: 999px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 3px;
+}
+
+.overlay-chip__label {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.overlay-chip__hint,
+.overlay-kicker,
+.overlay-status {
+  color: var(--overlay-muted);
+  font-size: 12px;
+}
+
+.overlay-panel {
+  width: min(100%, 420px);
+  border-radius: 22px;
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.overlay-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.overlay-head h1 {
+  margin: 4px 0 0;
+  font-size: 18px;
+  line-height: 1.15;
+}
+
+.overlay-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(124, 228, 218, 0.24);
+  background: rgba(124, 228, 218, 0.12);
+  color: var(--overlay-accent-strong);
+  padding: 6px 10px;
+}
+
+.overlay-body {
+  display: grid;
+  gap: 10px;
+}
+
+.caption-line {
+  margin: 0;
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+}
+
+.caption-line--primary {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.caption-line--secondary {
+  font-size: 14px;
+  color: var(--overlay-muted);
+}
+
+.overlay-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.overlay-button {
+  flex: 1;
+  min-height: 40px;
+  border-radius: 14px;
+  border: 1px solid var(--overlay-border);
+  color: var(--overlay-text);
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  transition:
+    transform 120ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.overlay-button:hover {
+  transform: translateY(-1px);
+}
+
+.overlay-button--primary {
+  border-color: rgba(124, 228, 218, 0.34);
+  background: linear-gradient(180deg, rgba(124, 228, 218, 0.22), rgba(124, 228, 218, 0.12));
+}
+
+[data-overlay-state="idle"] .overlay-panel {
+  display: none;
+}
+
+[data-overlay-state="idle"] .overlay-chip {
+  display: grid;
+}
+
+[data-overlay-state="listening"] .overlay-chip {
+  display: none;
+}
+
+[data-overlay-state="paused"] .overlay-status {
+  border-color: rgba(242, 198, 108, 0.28);
+  background: rgba(242, 198, 108, 0.12);
+  color: #ffe2a0;
+}
+
+[data-overlay-state="reconnecting"] .overlay-status {
+  border-color: rgba(239, 138, 138, 0.28);
+  background: rgba(239, 138, 138, 0.12);
+  color: #ffc2c2;
+}
+
+@media (max-width: 480px) {
+  .overlay-shell {
+    padding: 10px;
+  }
+
+  .overlay-panel {
+    width: 100%;
+  }
+
+  .overlay-actions {
+    flex-direction: column;
+  }
+}

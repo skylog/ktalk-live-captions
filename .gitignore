@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+.vite/
+*.tsbuildinfo
+.env
+.env.*
+*.local
+*.log
+*.zip
+*.crx
+*.pem

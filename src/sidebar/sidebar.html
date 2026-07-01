@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Transcript Sidebar</title>
+    <link rel="stylesheet" href="./sidebar.css" />
+  </head>
+  <body>
+    <main class="sidebar-shell" data-shell="sidebar" data-sidebar-state="ready">
+      <header class="sidebar-hero">
+        <div class="sidebar-kicker">Kontur Talk Live Captions</div>
+        <div class="sidebar-title-row">
+          <h1>Transcript</h1>
+          <span class="status-pill status-pill--live" data-status-pill>Captions active</span>
+        </div>
+        <p class="sidebar-copy">
+          Review the current session, browse recent history, and export notes locally.
+        </p>
+        <div class="sidebar-meta" aria-label="Session summary">
+          <span class="meta-chip" data-session-range>Today 10:32 - 11:14</span>
+          <span class="meta-chip meta-chip--accent">Local only</span>
+          <span class="meta-chip">Retention: 7 days</span>
+        </div>
+      </header>
+
+      <section class="panel panel--surface" aria-labelledby="live-session-title">
+        <div class="panel-head">
+          <div>
+            <h2 id="live-session-title">Current session</h2>
+            <p>Transcript segments update here as captions arrive.</p>
+          </div>
+          <button class="ghost-button" type="button" data-action="focus-latest">Open transcript</button>
+        </div>
+
+        <div class="segment-stream" data-transcript-stream aria-live="polite">
+          <article class="segment-card segment-card--partial">
+            <div class="segment-time">10:41</div>
+            <p class="segment-text">We should ship the first version this week.</p>
+          </article>
+          <article class="segment-card">
+            <div class="segment-time">10:43</div>
+            <p class="segment-text">Please keep the export format stable for note taking.</p>
+          </article>
+          <article class="segment-card">
+            <div class="segment-time">10:46</div>
+            <p class="segment-text">The reconnect logic needs to be visible to the user.</p>
+          </article>
+        </div>
+
+        <div class="empty-state" data-empty-state hidden>
+          <h3>No transcript yet</h3>
+          <p>Start a meeting to collect the first live captions and history entries.</p>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="history-title">
+        <div class="panel-head">
+          <div>
+            <h2 id="history-title">History</h2>
+            <p>Recent sessions available for review.</p>
+          </div>
+          <span class="panel-badge">3 saved</span>
+        </div>
+
+        <div class="history-list" data-history-list>
+          <button class="history-card history-card--active" type="button" data-session-id="today">
+            <span class="history-date">Today</span>
+            <span class="history-range">10:32 - 11:14</span>
+            <span class="history-preview">Decision recorded, action items captured, export ready.</span>
+          </button>
+          <button class="history-card" type="button" data-session-id="yesterday">
+            <span class="history-date">Yesterday</span>
+            <span class="history-range">14:05 - 14:48</span>
+            <span class="history-preview">Service health checked and reconnect behavior verified.</span>
+          </button>
+          <button class="history-card" type="button" data-session-id="monday">
+            <span class="history-date">Monday</span>
+            <span class="history-range">09:11 - 09:57</span>
+            <span class="history-preview">First-run flow discussed with permission and onboarding notes.</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="panel panel--actions" aria-labelledby="export-title">
+        <div class="panel-head">
+          <div>
+            <h2 id="export-title">Export</h2>
+            <p>Copy the transcript or download a text format.</p>
+          </div>
+        </div>
+
+        <div class="action-grid">
+          <button class="primary-button" type="button" data-action="copy-transcript">Copy</button>
+          <button class="secondary-button" type="button" data-action="export-txt">TXT</button>
+          <button class="secondary-button" type="button" data-action="export-markdown">Markdown</button>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./sidebar.ts"></script>
+  </body>
+</html>

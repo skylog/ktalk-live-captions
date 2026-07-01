@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Overlay</title>
+    <link rel="stylesheet" href="./overlay.css" />
+  </head>
+  <body>
+    <main class="overlay-shell" data-shell="overlay" data-overlay-state="listening">
+      <section class="overlay-chip" data-idle-chip hidden>
+        <span class="overlay-chip__label">Live captions idle</span>
+        <span class="overlay-chip__hint">Waiting for meeting audio</span>
+      </section>
+
+      <section class="overlay-panel" aria-label="Live captions">
+        <header class="overlay-head">
+          <div>
+            <div class="overlay-kicker">Live captions</div>
+            <h1>Meeting transcript</h1>
+          </div>
+          <span class="overlay-status" data-overlay-status>Listening</span>
+        </header>
+
+        <div class="overlay-body" aria-live="polite">
+          <p class="caption-line caption-line--primary">
+            We should ship the first version this week.
+          </p>
+          <p class="caption-line caption-line--secondary">
+            Please keep the export format stable for note taking.
+          </p>
+        </div>
+
+        <footer class="overlay-actions">
+          <button class="overlay-button overlay-button--primary" type="button" data-action="toggle-pause">
+            Pause
+          </button>
+          <button class="overlay-button" type="button" data-action="open-transcript">
+            Open transcript
+          </button>
+        </footer>
+      </section>
+    </main>
+
+    <script type="module" src="./overlay.ts"></script>
+  </body>
+</html>
