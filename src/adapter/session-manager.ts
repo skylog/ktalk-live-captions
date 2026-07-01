@@ -132,6 +132,17 @@ export function createSessionManager(options: SessionManagerOptions = {}): Sessi
     );
   }
 
+  function resetReconnectBudget(): Pick<
+    SessionSnapshot,
+    "reconnectAttempts" | "reconnectDelayMs" | "reconnectBudgetExceeded"
+  > {
+    return {
+      reconnectAttempts: 0,
+      reconnectDelayMs: null,
+      reconnectBudgetExceeded: false,
+    };
+  }
+
   return {
     getSnapshot() {
       return cloneSnapshot(snapshot);
@@ -163,6 +174,7 @@ export function createSessionManager(options: SessionManagerOptions = {}): Sessi
       return setPhase('checking-agent', reason, {
         meetingId: snapshot.meetingId,
         sessionId: snapshot.sessionId,
+        ...resetReconnectBudget(),
       });
     },
     markAgentReady(reason = 'agent-ready') {
@@ -184,6 +196,7 @@ export function createSessionManager(options: SessionManagerOptions = {}): Sessi
         sessionId: snapshot.sessionId,
         startedAt: snapshot.startedAt ?? now(),
         agentReady: true,
+        ...resetReconnectBudget(),
       });
     },
     markTransportReady(reason = 'transport-ready') {
