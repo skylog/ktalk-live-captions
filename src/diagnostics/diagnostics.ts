@@ -47,6 +47,9 @@ type ReconnectProbeState = {
   detail: string;
   sessionPhase: SessionSnapshot["session"]["phase"];
   transport: SessionSnapshot["session"]["transport"];
+  reconnectAttempts: number;
+  reconnectDelayMs: number | null;
+  reconnectBudgetExceeded: boolean;
   lastError: ProtocolError | null;
   nextStep: string;
 };
@@ -91,6 +94,9 @@ type DiagnosticsElements = {
   reconnectDetail: HTMLElement;
   reconnectPhase: HTMLElement;
   reconnectTransport: HTMLElement;
+  reconnectAttempts: HTMLElement;
+  reconnectDelay: HTMLElement;
+  reconnectBudget: HTMLElement;
   reconnectError: HTMLElement;
   reconnectNextStep: HTMLElement;
   snapshot: HTMLElement;
@@ -187,6 +193,9 @@ const state: DiagnosticsState = {
     detail: "The current reconnect state will appear here.",
     sessionPhase: "idle",
     transport: "idle",
+    reconnectAttempts: 0,
+    reconnectDelayMs: null,
+    reconnectBudgetExceeded: false,
     lastError: null,
     nextStep: "No action required.",
   },
@@ -224,6 +233,9 @@ function getElements(): DiagnosticsElements | null {
   const reconnectDetail = getRequiredElement<HTMLElement>("reconnect-detail");
   const reconnectPhase = getRequiredElement<HTMLElement>("reconnect-phase");
   const reconnectTransport = getRequiredElement<HTMLElement>("reconnect-transport");
+  const reconnectAttempts = getRequiredElement<HTMLElement>("reconnect-attempts");
+  const reconnectDelay = getRequiredElement<HTMLElement>("reconnect-delay");
+  const reconnectBudget = getRequiredElement<HTMLElement>("reconnect-budget");
   const reconnectError = getRequiredElement<HTMLElement>("reconnect-error");
   const reconnectNextStep = getRequiredElement<HTMLElement>("reconnect-next-step");
   const snapshot = getRequiredElement<HTMLElement>("diagnostics-snapshot");
@@ -252,6 +264,9 @@ function getElements(): DiagnosticsElements | null {
     !reconnectDetail ||
     !reconnectPhase ||
     !reconnectTransport ||
+    !reconnectAttempts ||
+    !reconnectDelay ||
+    !reconnectBudget ||
     !reconnectError ||
     !reconnectNextStep ||
     !snapshot ||
@@ -283,6 +298,9 @@ function getElements(): DiagnosticsElements | null {
     reconnectDetail,
     reconnectPhase,
     reconnectTransport,
+    reconnectAttempts,
+    reconnectDelay,
+    reconnectBudget,
     reconnectError,
     reconnectNextStep,
     snapshot,
@@ -335,6 +353,14 @@ function formatLatency(latencyMs: number | null): string {
   }
 
   return `${latencyMs} ms`;
+}
+
+function formatRetryDelay(retryDelayMs: number | null): string {
+  if (retryDelayMs === null) {
+    return "Unknown";
+  }
+
+  return `${retryDelayMs} ms`;
 }
 
 function setStatusBadge(element: HTMLElement | null, status: DiagnosticsStatus, label: string): void {
@@ -558,6 +584,9 @@ function mapReconnectState(snapshot: SessionSnapshot | null): ReconnectProbeStat
       detail: "The background session snapshot is not available yet.",
       sessionPhase: "idle",
       transport: "idle",
+      reconnectAttempts: 0,
+      reconnectDelayMs: null,
+      reconnectBudgetExceeded: false,
       lastError: null,
       nextStep: "Refresh diagnostics to read the current session state.",
     };
@@ -571,8 +600,27 @@ function mapReconnectState(snapshot: SessionSnapshot | null): ReconnectProbeStat
       detail: `${catalogEntry.description} ${lastError.message}`.trim(),
       sessionPhase: phase,
       transport,
+      reconnectAttempts: session.reconnectAttempts,
+      reconnectDelayMs: session.reconnectDelayMs,
+      reconnectBudgetExceeded: session.reconnectBudgetExceeded,
       lastError,
       nextStep: catalogEntry.recovery,
+    };
+  }
+
+  if (session.reconnectBudgetExceeded) {
+    return {
+      status: "error",
+      label: "Reconnect budget exhausted",
+      detail:
+        "The session exceeded the bounded reconnect budget and stopped trying to recover automatically.",
+      sessionPhase: phase,
+      transport,
+      reconnectAttempts: session.reconnectAttempts,
+      reconnectDelayMs: session.reconnectDelayMs,
+      reconnectBudgetExceeded: true,
+      lastError: null,
+      nextStep: "Restart the caption session after the local service is stable again.",
     };
   }
 
@@ -581,11 +629,17 @@ function mapReconnectState(snapshot: SessionSnapshot | null): ReconnectProbeStat
       status: "warning",
       label: "Reconnecting",
       detail:
-        "The session is still trying to recover the live transport. The current failure is transient so far.",
+        `The session is still trying to recover the live transport. Retry ${session.reconnectAttempts} is queued${session.reconnectDelayMs ? ` with a ${session.reconnectDelayMs} ms delay` : ""}.`,
       sessionPhase: phase,
       transport,
+      reconnectAttempts: session.reconnectAttempts,
+      reconnectDelayMs: session.reconnectDelayMs,
+      reconnectBudgetExceeded: false,
       lastError: null,
-      nextStep: "Wait for the local service to recover, then refresh diagnostics.",
+      nextStep:
+        session.reconnectDelayMs !== null
+          ? "Wait for the backoff window to elapse, then let the session retry automatically."
+          : "Wait for the local service to recover, then refresh diagnostics.",
     };
   }
 
@@ -596,6 +650,9 @@ function mapReconnectState(snapshot: SessionSnapshot | null): ReconnectProbeStat
       detail: "The session is preparing the local audio and transport pipeline.",
       sessionPhase: phase,
       transport,
+      reconnectAttempts: session.reconnectAttempts,
+      reconnectDelayMs: session.reconnectDelayMs,
+      reconnectBudgetExceeded: session.reconnectBudgetExceeded,
       lastError: null,
       nextStep: "No action required unless the session stalls for an extended period.",
     };
@@ -607,6 +664,9 @@ function mapReconnectState(snapshot: SessionSnapshot | null): ReconnectProbeStat
     detail: "No reconnect failure is recorded for the current session.",
     sessionPhase: phase,
     transport,
+    reconnectAttempts: session.reconnectAttempts,
+    reconnectDelayMs: session.reconnectDelayMs,
+    reconnectBudgetExceeded: session.reconnectBudgetExceeded,
     lastError: null,
     nextStep: "No action required.",
   };
@@ -672,6 +732,9 @@ function render(elements: DiagnosticsElements): void {
   elements.reconnectDetail.textContent = state.reconnect.detail;
   elements.reconnectPhase.textContent = state.reconnect.sessionPhase;
   elements.reconnectTransport.textContent = state.reconnect.transport;
+  elements.reconnectAttempts.textContent = String(state.reconnect.reconnectAttempts);
+  elements.reconnectDelay.textContent = formatRetryDelay(state.reconnect.reconnectDelayMs);
+  elements.reconnectBudget.textContent = state.reconnect.reconnectBudgetExceeded ? "Yes" : "No";
   elements.reconnectError.textContent = state.reconnect.lastError
     ? `${state.reconnect.lastError.code}: ${state.reconnect.lastError.message}`
     : "None";

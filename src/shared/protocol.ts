@@ -130,6 +130,9 @@ export interface SessionState {
   source: CaptureSource | null;
   phase: SessionPhase;
   transport: SessionTransportState;
+  reconnectAttempts: number;
+  reconnectDelayMs: number | null;
+  reconnectBudgetExceeded: boolean;
   startedAt: number | null;
   updatedAt: number | null;
   endedAt: number | null;
@@ -177,6 +180,9 @@ export interface SessionPatch {
   source?: CaptureSource | null;
   phase?: SessionPhase;
   transport?: SessionTransportState;
+  reconnectAttempts?: number;
+  reconnectDelayMs?: number | null;
+  reconnectBudgetExceeded?: boolean;
   startedAt?: number | null;
   updatedAt?: number | null;
   endedAt?: number | null;
@@ -358,6 +364,9 @@ export function createIdleSessionState(): SessionState {
     source: null,
     phase: "idle",
     transport: "idle",
+    reconnectAttempts: 0,
+    reconnectDelayMs: null,
+    reconnectBudgetExceeded: false,
     startedAt: null,
     updatedAt: null,
     endedAt: null,
