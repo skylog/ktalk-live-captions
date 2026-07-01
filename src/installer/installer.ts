@@ -1,4 +1,4 @@
-import { LOCAL_ASR_HTTP_URL } from "../shared/protocol";
+import { assertLocalAsrHttpUrl, LOCAL_ASR_HTTP_URL } from "../shared/protocol";
 
 export const INSTALLER_STATE_EVENT = "ktalk-installer:statechange";
 export const INSTALLER_CHECK_EVENT = "ktalk-installer:check";
@@ -200,12 +200,13 @@ function updateState(nextState: Partial<InstallerSnapshot>): void {
 }
 
 export async function probeLocalService(endpoint: string = LOCAL_ASR_HTTP_URL): Promise<ServiceDiscoveryResult> {
+  const localEndpoint = assertLocalAsrHttpUrl(endpoint);
   const startedAt = performance.now();
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), discoveryTimeoutMs);
 
   try {
-    await fetch(endpoint, {
+    await fetch(localEndpoint, {
       method: "GET",
       cache: "no-store",
       mode: "no-cors",
@@ -217,7 +218,7 @@ export async function probeLocalService(endpoint: string = LOCAL_ASR_HTTP_URL): 
       checkedAt: Date.now(),
       latencyMs: Math.round(performance.now() - startedAt),
       detail: "The local ASR service responded. The extension can connect to localhost:8000/asr.",
-      endpoint,
+      endpoint: localEndpoint,
     };
   } catch (error) {
     const timedOut = error instanceof DOMException && error.name === "AbortError";
@@ -229,7 +230,7 @@ export async function probeLocalService(endpoint: string = LOCAL_ASR_HTTP_URL): 
       detail: timedOut
         ? "The local ASR service did not answer before the timeout. Start WhisperLiveKit locally and retry discovery."
         : "The local ASR service could not be reached. Start WhisperLiveKit locally and retry discovery.",
-      endpoint,
+      endpoint: localEndpoint,
     };
   } finally {
     window.clearTimeout(timeoutId);

@@ -30,6 +30,7 @@ docs/
 ## Backend Contracts
 
 - The local ASR service must expose health and session endpoints.
+- HTTP and WebSocket clients must reject non-local endpoints and stay on `localhost:8000`.
 - Responses should distinguish partial and final transcript messages.
 - Failures must include a stable code and a human-readable reason.
 

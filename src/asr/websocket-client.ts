@@ -1,4 +1,5 @@
 import {
+  assertLocalAsrWsUrl,
   LOCAL_ASR_WS_URL,
   PROTOCOL_VERSION,
   type AudioChunkTransportMessage,
@@ -165,7 +166,7 @@ export class WebSocketTransport implements WebSocketTransportClient {
   private queue: string[] = [];
 
   constructor(options: WebSocketTransportClientOptions = {}) {
-    this.url = options.url ?? LOCAL_ASR_WS_URL;
+    this.url = assertLocalAsrWsUrl(options.url ?? LOCAL_ASR_WS_URL);
     this.protocols = options.protocols;
     this.socketFactory = options.socketFactory;
     this.onOpen = options.onOpen;

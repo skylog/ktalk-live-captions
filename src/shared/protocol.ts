@@ -3,6 +3,52 @@ export const PROTOCOL_VERSION = 1 as const;
 export const LOCAL_ASR_HTTP_URL = "http://localhost:8000/asr" as const;
 export const LOCAL_ASR_WS_URL = "ws://localhost:8000/asr" as const;
 
+function parseUrl(url: string): URL | null {
+  try {
+    return new URL(url);
+  } catch {
+    return null;
+  }
+}
+
+export function isLocalAsrHttpUrl(url: string): boolean {
+  const parsed = parseUrl(url);
+  return (
+    parsed !== null &&
+    parsed.protocol === "http:" &&
+    parsed.hostname === "localhost" &&
+    parsed.port === "8000" &&
+    parsed.pathname === "/asr"
+  );
+}
+
+export function isLocalAsrWsUrl(url: string): boolean {
+  const parsed = parseUrl(url);
+  return (
+    parsed !== null &&
+    parsed.protocol === "ws:" &&
+    parsed.hostname === "localhost" &&
+    parsed.port === "8000" &&
+    parsed.pathname === "/asr"
+  );
+}
+
+export function assertLocalAsrHttpUrl(url: string): string {
+  if (!isLocalAsrHttpUrl(url)) {
+    throw new Error(`Expected a localhost ASR HTTP endpoint, received ${url}`);
+  }
+
+  return url;
+}
+
+export function assertLocalAsrWsUrl(url: string): string {
+  if (!isLocalAsrWsUrl(url)) {
+    throw new Error(`Expected a localhost ASR WebSocket endpoint, received ${url}`);
+  }
+
+  return url;
+}
+
 export const SESSION_PHASES = [
   "idle",
   "checking-agent",
