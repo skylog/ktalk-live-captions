@@ -18,6 +18,22 @@
     "storage",
     "tabCapture"
   ],
+  "commands": {
+    "toggle-captions": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+L",
+        "mac": "Command+Shift+L"
+      },
+      "description": "Start or stop captions"
+    },
+    "open-transcript": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+O",
+        "mac": "Command+Shift+O"
+      },
+      "description": "Open the transcript sidebar"
+    }
+  },
   "content_scripts": [
     {
       "matches": [
