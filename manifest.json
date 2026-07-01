@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "Kontur Talk Live Captions",
+  "version": "0.1.0",
+  "description": "Local-only live captions and transcript support for Kontur Talk.",
+  "minimum_chrome_version": "114",
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_title": "Live captions"
+  },
+  "options_ui": {
+    "page": "src/onboarding/onboarding.html",
+    "open_in_tab": true
+  },
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "storage",
+    "tabCapture"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.kontur.ru/*",
+        "http://*.kontur.ru/*"
+      ],
+      "js": [
+        "src/content/content-script.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "host_permissions": [
+    "http://localhost:8000/*",
+    "ws://localhost:8000/*"
+  ],
+  "background": {
+    "service_worker": "src/background/service-worker.js",
+    "type": "module"
+  }
+}

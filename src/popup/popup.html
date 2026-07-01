@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Live Captions</title>
+    <link rel="stylesheet" href="./popup.css" />
+  </head>
+  <body>
+    <main class="popup-shell" aria-label="Live captions popup">
+      <section class="hero" aria-labelledby="popup-title">
+        <div class="eyebrow">Extension status</div>
+        <h1 id="popup-title">Live captions</h1>
+        <p class="description" id="popup-description">
+          Waiting for background state.
+        </p>
+      </section>
+
+      <section class="status-grid" aria-label="Current status">
+        <article class="status-card" aria-labelledby="service-status-label">
+          <div class="status-card__header">
+            <span class="status-card__label" id="service-status-label">
+              Service
+            </span>
+            <span class="status-pill" data-status="unknown" id="service-status">
+              Checking
+            </span>
+          </div>
+          <p class="status-card__value" id="service-status-value">
+            Local service state will appear here.
+          </p>
+        </article>
+
+        <article class="status-card" aria-labelledby="caption-status-label">
+          <div class="status-card__header">
+            <span class="status-card__label" id="caption-status-label">
+              Captions
+            </span>
+            <span class="status-pill" data-status="idle" id="caption-status">
+              Idle
+            </span>
+          </div>
+          <p class="status-card__value" id="caption-status-value">
+            Captioning state will appear here.
+          </p>
+        </article>
+      </section>
+
+      <section class="action-panel" aria-label="Primary action">
+        <button
+          class="primary-action"
+          id="primary-action"
+          type="button"
+          aria-live="polite"
+        >
+          Start captions
+        </button>
+        <p class="helper-text" id="action-hint">
+          Connect the button to background state and command handling.
+        </p>
+      </section>
+    </main>
+
+    <script type="module" src="./popup.ts"></script>
+  </body>
+</html>
