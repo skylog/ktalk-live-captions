@@ -74,6 +74,8 @@ interface ContentSessionSnapshot {
   agentReady: boolean;
   transportReady: boolean;
   reconnectAttempts: number;
+  reconnectDelayMs: number | null;
+  reconnectBudgetExceeded: boolean;
   startedAt: number | null;
   connectedAt: number | null;
   lastEventAt: number;
@@ -201,6 +203,9 @@ function cloneSession(state: SessionState): SessionState {
     source: state.source,
     phase: state.phase,
     transport: state.transport,
+    reconnectAttempts: state.reconnectAttempts,
+    reconnectDelayMs: state.reconnectDelayMs,
+    reconnectBudgetExceeded: state.reconnectBudgetExceeded,
     startedAt: state.startedAt,
     updatedAt: state.updatedAt,
     endedAt: state.endedAt,
@@ -367,6 +372,14 @@ function mapContentScriptSnapshotToSessionState(snapshot: ContentScriptSnapshot)
     meetingId: session.meetingId ?? snapshot.detection.meetingId ?? sessionState.meetingId,
     phase: isSessionPhase(session.phase) ? session.phase : sessionState.phase,
     transport: mapPhaseToTransport(isSessionPhase(session.phase) ? session.phase : sessionState.phase),
+    reconnectAttempts:
+      typeof session.reconnectAttempts === "number" ? session.reconnectAttempts : sessionState.reconnectAttempts,
+    reconnectDelayMs:
+      typeof session.reconnectDelayMs === "number" ? session.reconnectDelayMs : sessionState.reconnectDelayMs,
+    reconnectBudgetExceeded:
+      typeof session.reconnectBudgetExceeded === "boolean"
+        ? session.reconnectBudgetExceeded
+        : sessionState.reconnectBudgetExceeded,
     startedAt: session.startedAt ?? sessionState.startedAt,
     updatedAt: session.lastEventAt ?? nowTs,
     endedAt: session.phase === "finished" ? session.lastEventAt ?? nowTs : sessionState.endedAt,
@@ -382,6 +395,14 @@ function mapContentSessionSnapshotToSessionState(snapshot: ContentSessionSnapsho
     meetingId: snapshot.meetingId ?? sessionState.meetingId,
     phase: isSessionPhase(snapshot.phase) ? snapshot.phase : sessionState.phase,
     transport: mapPhaseToTransport(isSessionPhase(snapshot.phase) ? snapshot.phase : sessionState.phase),
+    reconnectAttempts:
+      typeof snapshot.reconnectAttempts === "number" ? snapshot.reconnectAttempts : sessionState.reconnectAttempts,
+    reconnectDelayMs:
+      typeof snapshot.reconnectDelayMs === "number" ? snapshot.reconnectDelayMs : sessionState.reconnectDelayMs,
+    reconnectBudgetExceeded:
+      typeof snapshot.reconnectBudgetExceeded === "boolean"
+        ? snapshot.reconnectBudgetExceeded
+        : sessionState.reconnectBudgetExceeded,
     startedAt: snapshot.startedAt ?? sessionState.startedAt,
     updatedAt: snapshot.lastEventAt ?? nowTs,
     endedAt: snapshot.phase === "finished" ? snapshot.lastEventAt ?? nowTs : sessionState.endedAt,
@@ -603,6 +624,15 @@ function normalizeSessionState(state: SessionState | null | undefined): SessionS
     source: isCaptureSource(state.source) ? state.source : null,
     phase: isSessionPhase(state.phase) ? state.phase : "idle",
     transport: isSessionTransportState(state.transport) ? state.transport : "idle",
+    reconnectAttempts:
+      typeof state.reconnectAttempts === "number" && Number.isFinite(state.reconnectAttempts)
+        ? state.reconnectAttempts
+        : 0,
+    reconnectDelayMs:
+      typeof state.reconnectDelayMs === "number" && Number.isFinite(state.reconnectDelayMs)
+        ? state.reconnectDelayMs
+        : null,
+    reconnectBudgetExceeded: typeof state.reconnectBudgetExceeded === "boolean" ? state.reconnectBudgetExceeded : false,
     startedAt: typeof state.startedAt === "number" ? state.startedAt : null,
     updatedAt: typeof state.updatedAt === "number" ? state.updatedAt : null,
     endedAt: typeof state.endedAt === "number" ? state.endedAt : null,

@@ -46,6 +46,8 @@ docs/
 - Integration test reconnect logic and export generation.
 - Smoke test extension startup, tab detection, and localhost connectivity.
 - Add regression tests for every user-visible error state.
+- Reconnect retries must be bounded and surfaced in diagnostics.
+- Capture-to-caption latency should be visible in local debug views.
 
 ## Release Process
 

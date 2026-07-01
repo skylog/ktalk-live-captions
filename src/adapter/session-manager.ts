@@ -15,6 +15,8 @@ export interface SessionSnapshot {
   agentReady: boolean;
   transportReady: boolean;
   reconnectAttempts: number;
+  reconnectDelayMs: number | null;
+  reconnectBudgetExceeded: boolean;
   startedAt: number | null;
   connectedAt: number | null;
   lastEventAt: number;
@@ -26,6 +28,9 @@ export interface SessionManagerOptions {
   now?: () => number;
   sessionIdFactory?: () => string;
   onChange?: (snapshot: SessionSnapshot) => void;
+  reconnectMaxAttempts?: number;
+  reconnectBaseDelayMs?: number;
+  reconnectMaxDelayMs?: number;
 }
 
 export interface SessionManager {
@@ -44,6 +49,9 @@ export interface SessionManager {
 }
 
 const DEFAULT_PHASE: SessionPhase = 'idle';
+const DEFAULT_RECONNECT_MAX_ATTEMPTS = 5;
+const DEFAULT_RECONNECT_BASE_DELAY_MS = 400;
+const DEFAULT_RECONNECT_MAX_DELAY_MS = 8000;
 
 function createSessionId(now: () => number): string {
   return `ktalk-${now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -64,6 +72,8 @@ function createInitialSnapshot(now: () => number): SessionSnapshot {
     agentReady: false,
     transportReady: false,
     reconnectAttempts: 0,
+    reconnectDelayMs: null,
+    reconnectBudgetExceeded: false,
     startedAt: null,
     connectedAt: null,
     lastEventAt: now(),
@@ -75,6 +85,9 @@ function createInitialSnapshot(now: () => number): SessionSnapshot {
 export function createSessionManager(options: SessionManagerOptions = {}): SessionManager {
   const now = options.now ?? Date.now;
   const createId = options.sessionIdFactory ?? (() => createSessionId(now));
+  const reconnectMaxAttempts = options.reconnectMaxAttempts ?? DEFAULT_RECONNECT_MAX_ATTEMPTS;
+  const reconnectBaseDelayMs = options.reconnectBaseDelayMs ?? DEFAULT_RECONNECT_BASE_DELAY_MS;
+  const reconnectMaxDelayMs = options.reconnectMaxDelayMs ?? DEFAULT_RECONNECT_MAX_DELAY_MS;
   const listeners = new Set<(snapshot: SessionSnapshot) => void>();
   let snapshot = createInitialSnapshot(now);
 
@@ -119,6 +132,17 @@ export function createSessionManager(options: SessionManagerOptions = {}): Sessi
     );
   }
 
+  function resetReconnectBudget(): Pick<
+    SessionSnapshot,
+    "reconnectAttempts" | "reconnectDelayMs" | "reconnectBudgetExceeded"
+  > {
+    return {
+      reconnectAttempts: 0,
+      reconnectDelayMs: null,
+      reconnectBudgetExceeded: false,
+    };
+  }
+
   return {
     getSnapshot() {
       return cloneSnapshot(snapshot);
@@ -137,6 +161,7 @@ export function createSessionManager(options: SessionManagerOptions = {}): Sessi
           detection,
           meetingId,
           phase: detection.detected && snapshot.phase === DEFAULT_PHASE ? 'checking-agent' : nextPhase,
+          reconnectAttempts: detection.detected ? snapshot.reconnectAttempts : snapshot.reconnectAttempts,
         },
         detection.detected ? 'meeting-detected' : 'meeting-not-detected',
       );
@@ -149,6 +174,7 @@ export function createSessionManager(options: SessionManagerOptions = {}): Sessi
       return setPhase('checking-agent', reason, {
         meetingId: snapshot.meetingId,
         sessionId: snapshot.sessionId,
+        ...resetReconnectBudget(),
       });
     },
     markAgentReady(reason = 'agent-ready') {
@@ -170,6 +196,7 @@ export function createSessionManager(options: SessionManagerOptions = {}): Sessi
         sessionId: snapshot.sessionId,
         startedAt: snapshot.startedAt ?? now(),
         agentReady: true,
+        ...resetReconnectBudget(),
       });
     },
     markTransportReady(reason = 'transport-ready') {
@@ -193,6 +220,9 @@ export function createSessionManager(options: SessionManagerOptions = {}): Sessi
       return setPhase('listening', reason, {
         transportReady: true,
         agentReady: true,
+        reconnectAttempts: 0,
+        reconnectDelayMs: null,
+        reconnectBudgetExceeded: false,
         connectedAt: snapshot.connectedAt ?? now(),
         startedAt: snapshot.startedAt ?? now(),
       });
@@ -202,14 +232,34 @@ export function createSessionManager(options: SessionManagerOptions = {}): Sessi
         ensureSessionId();
       }
 
+      const nextReconnectAttempts = snapshot.reconnectAttempts + 1;
+      const nextReconnectDelayMs = Math.min(
+        reconnectBaseDelayMs * (2 ** Math.max(0, nextReconnectAttempts - 1)),
+        reconnectMaxDelayMs,
+      );
+      const budgetExceeded = nextReconnectAttempts > reconnectMaxAttempts;
+
+      if (budgetExceeded) {
+        return setPhase('finished', 'reconnect-budget-exhausted', {
+          reconnectAttempts: nextReconnectAttempts,
+          reconnectDelayMs: null,
+          reconnectBudgetExceeded: true,
+          transportReady: false,
+        });
+      }
+
       return setPhase('reconnecting', reason, {
-        reconnectAttempts: snapshot.reconnectAttempts + 1,
+        reconnectAttempts: nextReconnectAttempts,
+        reconnectDelayMs: nextReconnectDelayMs,
+        reconnectBudgetExceeded: false,
         transportReady: false,
       });
     },
     markUnavailable(reason = 'service-unavailable') {
       return setPhase('finished', reason, {
         transportReady: false,
+        reconnectDelayMs: null,
+        reconnectBudgetExceeded: snapshot.reconnectBudgetExceeded,
       });
     },
     stop(reason = 'finished') {
@@ -219,6 +269,7 @@ export function createSessionManager(options: SessionManagerOptions = {}): Sessi
 
       return setPhase('finished', reason, {
         transportReady: false,
+        reconnectDelayMs: null,
       });
     },
     reset() {
