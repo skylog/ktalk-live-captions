@@ -65,6 +65,12 @@ docs/
 - After release, confirm install, start, reconnect, and export in a clean Chromium profile.
 - Keep the support runbook aligned with diagnostics output so common failures map to a known fix.
 
+## Keyboard Shortcuts
+
+- Extension commands should be defined in `manifest.json` and handled centrally in the background worker.
+- Use browser shortcut rebinding as the fallback when a default shortcut conflicts with a page or system shortcut.
+- Prefer commands that map directly to core actions, such as toggling captions or opening the transcript surface.
+
 ## Parallel Agent Workflow
 
 - Keep one owner per document section.
