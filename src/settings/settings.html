@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Live Captions Settings</title>
+    <link rel="stylesheet" href="./settings.css" />
+  </head>
+  <body>
+    <main class="settings-shell">
+      <section class="hero">
+        <div class="eyebrow">Local preferences</div>
+        <div class="hero__copy">
+          <h1>Live captions settings</h1>
+          <p>
+            Tune capture source, overlay placement, caption density, and export defaults.
+            Preferences stay in this browser profile and are available to the extension.
+          </p>
+        </div>
+        <div class="hero__chips" aria-label="Settings status">
+          <span class="status-pill" data-status="loading" id="settings-status">Loading</span>
+          <span class="meta-chip">Local only</span>
+        </div>
+      </section>
+
+      <div class="settings-grid">
+        <form class="settings-form" id="settings-form">
+          <section class="panel">
+            <div class="panel__head">
+              <div>
+                <h2>Capture source</h2>
+                <p>Choose which audio source the meeting session should prefer.</p>
+              </div>
+              <span class="panel__value" id="capture-source-badge">Tab audio</span>
+            </div>
+
+            <div class="option-grid option-grid--two" role="radiogroup" aria-label="Capture source">
+              <label class="choice-card">
+                <input type="radio" name="capture-source" value="tab-audio" checked />
+                <span class="choice-card__title">Tab audio</span>
+                <span class="choice-card__copy">Capture the meeting tab stream.</span>
+              </label>
+
+              <label class="choice-card">
+                <input type="radio" name="capture-source" value="microphone" />
+                <span class="choice-card__title">Microphone</span>
+                <span class="choice-card__copy">Use the active microphone input.</span>
+              </label>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel__head">
+              <div>
+                <h2>Overlay position</h2>
+                <p>Pick the corner where captions appear by default.</p>
+              </div>
+              <span class="panel__value" id="overlay-badge">Bottom right</span>
+            </div>
+
+            <fieldset class="option-fieldset" id="overlay-position-field">
+              <legend class="sr-only">Overlay position</legend>
+              <div class="option-grid option-grid--four" role="radiogroup" aria-label="Overlay position">
+                <label class="choice-card">
+                  <input type="radio" name="overlay-position" value="bottom-right" checked />
+                  <span class="choice-card__title">Bottom right</span>
+                  <span class="choice-card__copy">Keeps the view out of the way.</span>
+                </label>
+
+                <label class="choice-card">
+                  <input type="radio" name="overlay-position" value="bottom-left" />
+                  <span class="choice-card__title">Bottom left</span>
+                  <span class="choice-card__copy">Useful when controls sit on the right.</span>
+                </label>
+
+                <label class="choice-card">
+                  <input type="radio" name="overlay-position" value="top-right" />
+                  <span class="choice-card__title">Top right</span>
+                  <span class="choice-card__copy">Keeps captions high and compact.</span>
+                </label>
+
+                <label class="choice-card">
+                  <input type="radio" name="overlay-position" value="top-left" />
+                  <span class="choice-card__title">Top left</span>
+                  <span class="choice-card__copy">Mirrors a left-hand workspace.</span>
+                </label>
+              </div>
+            </fieldset>
+          </section>
+
+          <section class="panel">
+            <div class="panel__head">
+              <div>
+                <h2>Caption density</h2>
+                <p>Control how compact the overlay text should feel.</p>
+              </div>
+              <span class="panel__value" id="density-badge">Balanced</span>
+            </div>
+
+            <fieldset class="option-fieldset" id="caption-density-field">
+              <legend class="sr-only">Caption density</legend>
+              <div class="option-grid option-grid--three" role="radiogroup" aria-label="Caption density">
+                <label class="choice-card">
+                  <input type="radio" name="caption-density" value="compact" />
+                  <span class="choice-card__title">Compact</span>
+                  <span class="choice-card__copy">Short lines and tighter spacing.</span>
+                </label>
+
+                <label class="choice-card">
+                  <input type="radio" name="caption-density" value="balanced" checked />
+                  <span class="choice-card__title">Balanced</span>
+                  <span class="choice-card__copy">Readability first, still compact.</span>
+                </label>
+
+                <label class="choice-card">
+                  <input type="radio" name="caption-density" value="relaxed" />
+                  <span class="choice-card__title">Relaxed</span>
+                  <span class="choice-card__copy">More space for long sentences.</span>
+                </label>
+              </div>
+            </fieldset>
+          </section>
+
+          <section class="panel">
+            <div class="panel__head">
+              <div>
+                <h2>Export defaults</h2>
+                <p>Set the preferred file format and included metadata.</p>
+              </div>
+              <span class="panel__value" id="export-badge">TXT</span>
+            </div>
+
+            <fieldset class="option-fieldset" id="export-format-field">
+              <legend class="sr-only">Export format</legend>
+              <div class="option-grid option-grid--two" role="radiogroup" aria-label="Export format">
+                <label class="choice-card">
+                  <input type="radio" name="export-format" value="txt" checked />
+                  <span class="choice-card__title">TXT</span>
+                  <span class="choice-card__copy">Plain text for simple notes.</span>
+                </label>
+
+                <label class="choice-card">
+                  <input type="radio" name="export-format" value="markdown" />
+                  <span class="choice-card__title">Markdown</span>
+                  <span class="choice-card__copy">Structured text for docs and wikis.</span>
+                </label>
+              </div>
+            </fieldset>
+
+            <div class="toggle-list" aria-label="Export defaults">
+              <label class="toggle-row">
+                <input type="checkbox" id="export-timestamps" checked />
+                <span>
+                  <strong>Include timestamps</strong>
+                  <small>Add time markers to exported transcripts.</small>
+                </span>
+              </label>
+
+              <label class="toggle-row">
+                <input type="checkbox" id="export-speaker-labels" />
+                <span>
+                  <strong>Include speaker labels</strong>
+                  <small>Keep labels when they are available in the session.</small>
+                </span>
+              </label>
+            </div>
+          </section>
+
+          <footer class="form-footer">
+            <button class="secondary-button" type="button" id="reset-settings">
+              Reset defaults
+            </button>
+            <p id="settings-save-note">Changes save locally in this browser profile.</p>
+          </footer>
+        </form>
+
+        <aside class="summary-panel" aria-label="Current settings summary">
+          <section class="panel panel--summary">
+            <div class="panel__head">
+              <div>
+                <h2>Live preview</h2>
+                <p>See how the overlay will feel with the current settings.</p>
+              </div>
+            </div>
+
+            <div class="preview-stage" id="settings-preview" data-overlay-position="bottom-right" data-caption-density="balanced">
+              <div class="preview-caption">
+                <div class="preview-caption__eyebrow">Kontur Talk</div>
+                <div class="preview-caption__line preview-caption__line--primary">
+                  We should ship the first version this week.
+                </div>
+                <div class="preview-caption__line preview-caption__line--secondary">
+                  Local only, stored in the browser profile.
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel__head">
+              <div>
+                <h2>Saved values</h2>
+                <p>These settings are available to other extension surfaces.</p>
+              </div>
+            </div>
+
+            <dl class="summary-list">
+              <div>
+                <dt>Capture source</dt>
+                <dd id="capture-source-value">Tab audio</dd>
+              </div>
+              <div>
+                <dt>Overlay position</dt>
+                <dd id="overlay-value">Bottom right</dd>
+              </div>
+              <div>
+                <dt>Caption density</dt>
+                <dd id="density-value">Balanced</dd>
+              </div>
+              <div>
+                <dt>Export format</dt>
+                <dd id="export-value">TXT</dd>
+              </div>
+              <div>
+                <dt>Export details</dt>
+                <dd id="export-details-value">timestamps on / speaker labels off</dd>
+              </div>
+            </dl>
+          </section>
+        </aside>
+      </div>
+    </main>
+
+    <script type="module" src="./settings.ts"></script>
+  </body>
+</html>

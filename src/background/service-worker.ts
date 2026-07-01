@@ -25,6 +25,12 @@ import {
 
 interface ChromeRuntimeAPI {
   lastError?: { message?: string };
+  getManifest(): {
+    options_ui?: {
+      page?: string;
+    };
+  };
+  getURL(path: string): string;
   sendMessage(message: unknown, callback?: (response: unknown) => void): void;
   onInstalled: {
     addListener(callback: (details: { reason: string }) => void): void;
@@ -40,6 +46,12 @@ interface ChromeRuntimeAPI {
         sendResponse: (response: unknown) => void,
       ) => boolean | void,
     ): void;
+  };
+}
+
+interface ChromeActionAPI {
+  onClicked: {
+    addListener(callback: () => void): void;
   };
 }
 
@@ -95,8 +107,23 @@ interface ChromeTabsAPI {
     queryInfo: {
       active?: boolean;
       currentWindow?: boolean;
+      url?: string;
     },
-    callback: (tabs: Array<{ id?: number }>) => void,
+    callback: (tabs: Array<{ id?: number; windowId?: number; url?: string }>) => void,
+  ): void;
+  create(
+    createProperties: {
+      active?: boolean;
+      url: string;
+    },
+    callback?: (tab: { id?: number; windowId?: number } | undefined) => void,
+  ): void;
+  update(
+    tabId: number,
+    updateProperties: {
+      active?: boolean;
+    },
+    callback?: (tab: { id?: number; windowId?: number } | undefined) => void,
   ): void;
   sendMessage<TResponse>(
     tabId: number,
@@ -105,9 +132,31 @@ interface ChromeTabsAPI {
   ): void;
 }
 
+interface ChromeWindowsAPI {
+  create(
+    createData: {
+      focused?: boolean;
+      height?: number;
+      type?: "normal" | "popup";
+      url?: string;
+      width?: number;
+    },
+    callback?: (window: { id?: number } | undefined) => void,
+  ): void;
+  update(
+    windowId: number,
+    updateInfo: {
+      focused?: boolean;
+    },
+    callback?: (window: { id?: number } | undefined) => void,
+  ): void;
+}
+
 interface ChromeExtensionAPI {
+  action: ChromeActionAPI;
   runtime: ChromeRuntimeAPI;
   tabs: ChromeTabsAPI;
+  windows: ChromeWindowsAPI;
   storage: {
     local: ChromeStorageArea;
   };
@@ -116,6 +165,11 @@ interface ChromeExtensionAPI {
 declare const chrome: ChromeExtensionAPI;
 
 export const SESSION_STORAGE_KEY = "ktalk-live-captions.session.v1";
+const UI_ROUTING_STORAGE_KEY = "ktalk-live-captions.ui-routing.v1";
+
+interface UiRoutingState {
+  onboardingSeen: boolean;
+}
 
 let sessionState: SessionState = createIdleSessionState();
 let transcriptSegments: TranscriptSegment[] = [];
@@ -211,6 +265,18 @@ function isContentSessionSnapshot(value: unknown): value is ContentSessionSnapsh
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function normalizeUiRoutingState(value: unknown): UiRoutingState {
+  if (!isRecord(value)) {
+    return {
+      onboardingSeen: false,
+    };
+  }
+
+  return {
+    onboardingSeen: typeof value.onboardingSeen === "boolean" ? value.onboardingSeen : false,
+  };
 }
 
 function isContentBridgeMessage(message: unknown): message is ContentBridgeRequest {
@@ -593,9 +659,9 @@ function makeSnapshot(): SessionSnapshot {
   };
 }
 
-function getStorageBlob(): Promise<Record<string, unknown>> {
+function getStorageItems(keys: string | string[] | Record<string, unknown> | null): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
-    chrome.storage.local.get(SESSION_STORAGE_KEY, (items) => {
+    chrome.storage.local.get(keys, (items) => {
       if (chrome.runtime.lastError) {
         reject(new Error(chrome.runtime.lastError.message ?? "Storage read failed"));
         return;
@@ -604,6 +670,10 @@ function getStorageBlob(): Promise<Record<string, unknown>> {
       resolve(items);
     });
   });
+}
+
+function getStorageBlob(): Promise<Record<string, unknown>> {
+  return getStorageItems(SESSION_STORAGE_KEY);
 }
 
 function setStorageBlob(snapshot: SessionSnapshot): Promise<void> {
@@ -617,6 +687,131 @@ function setStorageBlob(snapshot: SessionSnapshot): Promise<void> {
       resolve();
     });
   });
+}
+
+function setStorageItems(items: Record<string, unknown>): Promise<void> {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.set(items, () => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message ?? "Storage write failed"));
+        return;
+      }
+
+      resolve();
+    });
+  });
+}
+
+function getOptionsPageUrl(): string {
+  const manifest = chrome.runtime.getManifest();
+  const page = manifest.options_ui?.page ?? "src/onboarding/onboarding.html";
+  return chrome.runtime.getURL(page);
+}
+
+function getPopupPageUrl(): string {
+  return chrome.runtime.getURL("src/popup/popup.html");
+}
+
+async function getUiRoutingState(): Promise<UiRoutingState> {
+  const items = await getStorageItems(UI_ROUTING_STORAGE_KEY);
+  return normalizeUiRoutingState(items[UI_ROUTING_STORAGE_KEY]);
+}
+
+async function setUiRoutingState(state: UiRoutingState): Promise<void> {
+  await setStorageItems({ [UI_ROUTING_STORAGE_KEY]: state });
+}
+
+async function focusTab(tab: { id?: number; windowId?: number }): Promise<void> {
+  if (typeof tab.id === "number") {
+    await new Promise<void>((resolve) => {
+      chrome.tabs.update(tab.id as number, { active: true }, () => {
+        resolve();
+      });
+    });
+  }
+
+  if (typeof tab.windowId === "number") {
+    await new Promise<void>((resolve) => {
+      chrome.windows.update(tab.windowId as number, { focused: true }, () => {
+        resolve();
+      });
+    });
+  }
+}
+
+async function queryTabsByUrl(url: string): Promise<Array<{ id?: number; windowId?: number; url?: string }>> {
+  return new Promise((resolve) => {
+    chrome.tabs.query({ url }, (tabs) => {
+      resolve(tabs);
+    });
+  });
+}
+
+async function openPageInTab(url: string): Promise<void> {
+  const tabs = await queryTabsByUrl(url);
+  const existingTab = tabs[0];
+
+  if (existingTab) {
+    await focusTab(existingTab);
+    return;
+  }
+
+  await new Promise<void>((resolve) => {
+    chrome.tabs.create({ url, active: true }, () => {
+      resolve();
+    });
+  });
+}
+
+async function openOnboardingSurface(): Promise<void> {
+  await openPageInTab(getOptionsPageUrl());
+}
+
+async function openPopupSurface(): Promise<void> {
+  const popupUrl = getPopupPageUrl();
+  const tabs = await queryTabsByUrl(popupUrl);
+  const existingTab = tabs[0];
+
+  if (existingTab) {
+    await focusTab(existingTab);
+    return;
+  }
+
+  await new Promise<void>((resolve) => {
+    chrome.windows.create(
+      {
+        url: popupUrl,
+        type: "popup",
+        focused: true,
+        width: 420,
+        height: 720,
+      },
+      (window) => {
+        if (chrome.runtime.lastError || !window) {
+          chrome.tabs.create({ url: popupUrl, active: true }, () => {
+            resolve();
+          });
+          return;
+        }
+
+        resolve();
+      },
+    );
+  });
+}
+
+async function handleActionClick(): Promise<void> {
+  await bootstrapServiceWorker();
+
+  const routingState = await getUiRoutingState();
+
+  if (!routingState.onboardingSeen) {
+    await openOnboardingSurface();
+    await setUiRoutingState({ onboardingSeen: true });
+    return;
+  }
+
+  await openPopupSurface();
 }
 
 async function persistState(): Promise<void> {
@@ -961,6 +1156,10 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.runtime.onStartup.addListener(() => {
   void bootstrapServiceWorker();
+});
+
+chrome.action.onClicked.addListener(() => {
+  void handleActionClick();
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Diagnostics | Live Captions</title>
+    <link rel="stylesheet" href="./diagnostics.css" />
+  </head>
+  <body>
+    <main class="diagnostics-shell" aria-label="Connection diagnostics">
+      <section class="hero">
+        <div class="hero__eyebrow">Local support</div>
+        <div class="hero__copy">
+          <h1>Connection diagnostics</h1>
+          <p>
+            Inspect local service health, capture permissions, and reconnect
+            failures without opening settings. This view stays focused on the
+            runtime state needed to debug caption startup.
+          </p>
+        </div>
+
+        <div class="hero__actions">
+          <button class="primary-action" id="refresh-diagnostics" type="button">
+            Refresh diagnostics
+          </button>
+          <button class="secondary-action" id="copy-diagnostics" type="button">
+            Copy snapshot
+          </button>
+          <span class="hero__status" id="diagnostics-status">
+            Waiting for the first local check.
+          </span>
+        </div>
+      </section>
+
+      <section class="summary-grid" aria-label="Diagnostics summary">
+        <article class="summary-card">
+          <div class="summary-card__header">
+            <div>
+              <div class="summary-card__label">Runtime</div>
+              <h2>Background bridge</h2>
+            </div>
+            <span class="status-pill" data-status="unknown" id="runtime-status">
+              Checking
+            </span>
+          </div>
+          <p class="summary-card__body" id="runtime-detail">
+            The extension bridge has not responded yet.
+          </p>
+          <dl class="summary-meta">
+            <div>
+              <dt>Extension version</dt>
+              <dd id="runtime-version">Unknown</dd>
+            </div>
+            <div>
+              <dt>Protocol</dt>
+              <dd id="runtime-protocol">v1</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article class="summary-card">
+          <div class="summary-card__header">
+            <div>
+              <div class="summary-card__label">Service health</div>
+              <h2>Local ASR endpoint</h2>
+            </div>
+            <span class="status-pill" data-status="unknown" id="service-status">
+              Checking
+            </span>
+          </div>
+          <p class="summary-card__body" id="service-detail">
+            The local service probe will appear here.
+          </p>
+          <dl class="summary-meta">
+            <div>
+              <dt>Endpoint</dt>
+              <dd id="service-endpoint">http://localhost:8000/asr</dd>
+            </div>
+            <div>
+              <dt>Last check</dt>
+              <dd id="service-checked-at">Not checked yet</dd>
+            </div>
+            <div>
+              <dt>Latency</dt>
+              <dd id="service-latency">Unknown</dd>
+            </div>
+            <div>
+              <dt>Failure reason</dt>
+              <dd id="service-reason">No failure recorded.</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article class="summary-card">
+          <div class="summary-card__header">
+            <div>
+              <div class="summary-card__label">Capture permission</div>
+              <h2>Browser access</h2>
+            </div>
+            <span class="status-pill" data-status="unknown" id="capture-status">
+              Checking
+            </span>
+          </div>
+          <p class="summary-card__body" id="capture-detail">
+            Capture permissions will be verified locally.
+          </p>
+          <dl class="summary-meta">
+            <div>
+              <dt>Missing permissions</dt>
+              <dd id="capture-missing-permissions">None</dd>
+            </div>
+            <div>
+              <dt>Missing host access</dt>
+              <dd id="capture-missing-origins">None</dd>
+            </div>
+          </dl>
+        </article>
+      </section>
+
+      <section class="detail-grid" aria-label="Failure details">
+        <article class="detail-card">
+          <div class="detail-card__header">
+            <div>
+              <div class="detail-card__label">Reconnect failures</div>
+              <h2>Current session failure state</h2>
+            </div>
+            <span class="status-pill" data-status="unknown" id="reconnect-status">
+              Checking
+            </span>
+          </div>
+          <p class="detail-card__body" id="reconnect-detail">
+            The current reconnect state will appear here.
+          </p>
+          <dl class="summary-meta summary-meta--single">
+            <div>
+              <dt>Session phase</dt>
+              <dd id="reconnect-phase">Unknown</dd>
+            </div>
+            <div>
+              <dt>Transport</dt>
+              <dd id="reconnect-transport">Unknown</dd>
+            </div>
+            <div>
+              <dt>Last error</dt>
+              <dd id="reconnect-error">None</dd>
+            </div>
+            <div>
+              <dt>Recovery step</dt>
+              <dd id="reconnect-next-step">No action required.</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article class="detail-card">
+          <div class="detail-card__header">
+            <div>
+              <div class="detail-card__label">Debug view</div>
+              <h2>Raw local snapshot</h2>
+            </div>
+          </div>
+          <pre class="snapshot" id="diagnostics-snapshot" aria-label="Diagnostics snapshot">
+Waiting for data.
+          </pre>
+          <p class="detail-card__footnote" id="diagnostics-note">
+            The snapshot is local to this browser profile and does not leave the machine.
+          </p>
+        </article>
+      </section>
+
+      <section class="catalog-section" aria-labelledby="error-catalog-title">
+        <div class="section-head">
+          <div>
+            <div class="section-head__eyebrow">Error catalog</div>
+            <h2 id="error-catalog-title">Explicit failure states</h2>
+          </div>
+          <p>
+            These are the user-facing descriptions the diagnostics view uses to
+            explain a failed startup or reconnect path.
+          </p>
+        </div>
+        <div class="catalog-grid" id="diagnostics-catalog"></div>
+      </section>
+    </main>
+
+    <script type="module" src="./index.ts"></script>
+  </body>
+</html>
