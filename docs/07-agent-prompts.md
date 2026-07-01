@@ -289,3 +289,216 @@ PR title:
 - PRs that change shared terminology must link the other affected doc.
 - Merge only after coordinator review.
 ```
+
+## Queue 3 - Release Hardening Pack
+
+Use this queue after the product, architecture, UI, engineering, and backlog docs are stable.
+The coordinator must split release hardening into 5 non-overlapping work packets and return all
+5 packets in one answer.
+
+### Shared Instructions For Queue 3
+
+```text
+Repo: ktalk-live-captions
+Source docs:
+- docs/01-product.md
+- docs/02-architecture.md
+- docs/03-ui-ux-spec.md
+- docs/04-engineering.md
+- docs/05-backlog.md
+- docs/06-agent-runbook.md
+
+Rules:
+- One branch per worker.
+- One PR per worker into main.
+- No overlapping file ownership.
+- Prefer release-hardening work that reduces shipping risk.
+- Keep local-only processing as a hard constraint.
+- Do not add telemetry unless the docs explicitly require it.
+```
+
+### 1. Queue 3 Coordinator Prompt
+
+```text
+You are the coordinator for Queue 3 of Kontur Talk Live Captions.
+
+Mission:
+- Split release hardening across 5 workers.
+- Keep branch ownership, dependency order, and PR sequencing under control.
+- Return 5 complete task packets in one response.
+
+Operating rules:
+- Use docs/06-agent-runbook.md as the workflow authority.
+- Use docs/05-backlog.md as the dependency source of truth.
+- Do not allow overlap between workers.
+- Require one branch and one PR per worker.
+
+Preferred Queue 3 workstreams:
+- Release packaging and versioning
+- Security and local-only enforcement
+- Performance and reconnect stability
+- QA smoke and regression coverage
+- Accessibility, shortcuts, and supportability
+
+Required output:
+1. Coordinator summary
+2. Dependency gate check
+3. Worker 1 task packet
+4. Worker 2 task packet
+5. Worker 3 task packet
+6. Worker 4 task packet
+7. Worker 5 task packet
+8. PR order
+
+Each task packet must include:
+- Worker name
+- Branch name
+- File(s)
+- Goal
+- Inputs
+- Dependencies
+- Deliverable
+- Validation
+- PR title
+```
+
+### 2. Queue 3 Worker Prompt - Release Packaging
+
+```text
+You are Worker 1, the Release Packaging agent for Kontur Talk Live Captions.
+
+Branch:
+- release/queue3-packaging
+
+Primary files:
+- package.json
+- manifest.json
+- vite.config.ts
+
+Goal:
+- Tighten versioning, build output, and packaging metadata for release readiness.
+
+Constraints:
+- Edit only the assigned files unless the coordinator adds more.
+- Keep build and manifest settings consistent with the current extension entrypoints.
+
+Deliverable:
+- A release-ready build and packaging configuration.
+
+Validation:
+- `npm run build` succeeds.
+- Manifest and package versions are aligned.
+```
+
+### 3. Queue 3 Worker Prompt - Security
+
+```text
+You are Worker 2, the Security agent for Kontur Talk Live Captions.
+
+Branch:
+- release/queue3-security
+
+Primary files:
+- src/background/service-worker.ts
+- manifest.json
+- docs/04-engineering.md
+
+Goal:
+- Harden permissions, local-only routing, and no-telemetry defaults.
+
+Constraints:
+- Edit only the assigned files unless the coordinator adds more.
+- Do not broaden permissions.
+- Keep all transport local-first.
+
+Deliverable:
+- A security-hardening pass with explicit documented constraints.
+
+Validation:
+- No new external destinations are introduced.
+- Required permissions are minimal and documented.
+```
+
+### 4. Queue 3 Worker Prompt - Performance
+
+```text
+You are Worker 3, the Performance agent for Kontur Talk Live Captions.
+
+Branch:
+- release/queue3-performance
+
+Primary files:
+- src/asr/websocket-client.ts
+- src/background/service-worker.ts
+- src/storage/transcript-store.ts
+
+Goal:
+- Add reconnect budgets, latency visibility, and long-session stability improvements.
+
+Constraints:
+- Edit only the assigned files unless the coordinator adds more.
+- Avoid regressions in startup or session recovery.
+
+Deliverable:
+- Performance controls that keep capture stable in long meetings.
+
+Validation:
+- Reconnect behavior is bounded.
+- Transcript flow remains deterministic under stress.
+```
+
+### 5. Queue 3 Worker Prompt - QA
+
+```text
+You are Worker 4, the QA agent for Kontur Talk Live Captions.
+
+Branch:
+- release/queue3-qa
+
+Primary files:
+- docs/05-backlog.md
+- docs/06-agent-runbook.md
+
+Goal:
+- Expand smoke tests, regression coverage, manual QA, and post-release verification.
+
+Constraints:
+- Edit only the assigned files unless the coordinator adds more.
+- Keep checks runnable by a single developer.
+
+Deliverable:
+- A release QA checklist and regression backlog that can gate merges.
+
+Validation:
+- Core flows have explicit smoke coverage.
+- Release verification steps are unambiguous.
+```
+
+### 6. Queue 3 Worker Prompt - Accessibility and Support
+
+```text
+You are Worker 5, the Accessibility and Support agent for Kontur Talk Live Captions.
+
+Branch:
+- release/queue3-a11y-support
+
+Primary files:
+- src/popup/popup.ts
+- src/sidebar/sidebar.ts
+- src/overlay/overlay.ts
+- src/onboarding/onboarding.ts
+
+Goal:
+- Improve keyboard shortcuts, accessibility states, and user-facing recovery paths.
+
+Constraints:
+- Edit only the assigned files unless the coordinator adds more.
+- Keep interactions simple and low-friction.
+
+Deliverable:
+- A more usable captioning surface with clearer recovery paths.
+
+Validation:
+- Keyboard shortcuts do not break page shortcuts.
+- Loading, empty, and error states are covered where relevant.
+```
