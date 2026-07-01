@@ -57,6 +57,14 @@ docs/
 4. Verify the local ASR connection.
 5. Package and tag the release.
 
+## QA And Support
+
+- Maintain a short smoke checklist for popup, overlay, sidebar, and diagnostics before each release.
+- Record the expected recovery action for service-missing, permission-denied, reconnect, and export-failed states.
+- Verify keyboard focus, labels, and ARIA roles on the main surfaces before merging UI changes.
+- After release, confirm install, start, reconnect, and export in a clean Chromium profile.
+- Keep the support runbook aligned with diagnostics output so common failures map to a known fix.
+
 ## Parallel Agent Workflow
 
 - Keep one owner per document section.
