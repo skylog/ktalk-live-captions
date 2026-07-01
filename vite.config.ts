@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 import { defineConfig, type Plugin } from "vite";
 
 const rootDir = dirname(fileURLToPath(import.meta.url));
+const packageJsonPath = join(rootDir, "package.json");
+const manifestJsonPath = join(rootDir, "manifest.json");
 const onboardingHtml = join(rootDir, "src/onboarding/onboarding.html");
 const diagnosticsHtml = join(rootDir, "src/diagnostics/diagnostics.html");
 const diagnosticsPlaceholderHtml = `<!doctype html>
@@ -53,10 +55,19 @@ function copyManifestPlugin(): Plugin {
   return {
     name: "copy-manifest",
     generateBundle() {
+      const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as { version?: string };
+      const manifestJson = JSON.parse(readFileSync(manifestJsonPath, "utf8")) as { version?: string };
+
+      if (packageJson.version !== manifestJson.version) {
+        throw new Error(
+          `package.json version (${packageJson.version ?? "missing"}) does not match manifest.json version (${manifestJson.version ?? "missing"})`,
+        );
+      }
+
       this.emitFile({
         type: "asset",
         fileName: "manifest.json",
-        source: readFileSync(join(rootDir, "manifest.json"), "utf8"),
+        source: readFileSync(manifestJsonPath, "utf8"),
       });
     },
   };

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Kontur Talk Live Captions",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Local-only live captions and transcript support for Kontur Talk.",
   "minimum_chrome_version": "114",
   "action": {

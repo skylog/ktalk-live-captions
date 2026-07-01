@@ -1,11 +1,12 @@
 {
   "name": "ktalk-live-captions",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite --config vite.config.ts",
     "build": "vite build --config vite.config.ts",
+    "build:release": "npm run typecheck && npm run build",
     "build:queue2": "vite build --config vite.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "typecheck:config": "tsc -p tsconfig.node.json --noEmit"
