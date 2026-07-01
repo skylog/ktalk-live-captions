@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Local Service Installer</title>
+    <link rel="stylesheet" href="./installer.css" />
+  </head>
+  <body>
+    <main class="installer-shell" aria-label="Local service installer">
+      <section class="hero" aria-labelledby="installer-title">
+        <div class="eyebrow">Local installer</div>
+        <h1 id="installer-title">Discover the local ASR service</h1>
+        <p class="hero__lead" id="installer-lead">
+          Speech stays on this machine. This page checks whether WhisperLiveKit
+          is reachable at <span class="inline-code">localhost:8000/asr</span>
+          and keeps the setup flow local-only.
+        </p>
+
+        <div class="hero__actions">
+          <button class="primary-action" id="retry-discovery" type="button">
+            Check local service
+          </button>
+          <span class="status-pill" data-status="checking" id="installer-phase">
+            Checking
+          </span>
+        </div>
+
+        <p class="hero__summary" id="installer-summary">
+          Waiting for the first discovery pass.
+        </p>
+      </section>
+
+      <section class="status-grid" aria-label="Discovery status">
+        <article class="status-card" id="service-card">
+          <header class="status-card__header">
+            <div>
+              <div class="status-card__label">Local ASR service</div>
+              <h2>Probe localhost:8000/asr</h2>
+            </div>
+            <span class="status-pill" data-status="checking" id="service-status">
+              Checking
+            </span>
+          </header>
+
+          <p class="status-card__body" id="service-detail">
+            The installer probes the local endpoint before the extension flow
+            continues.
+          </p>
+
+          <dl class="status-meta">
+            <div>
+              <dt>Endpoint</dt>
+              <dd id="service-endpoint">http://localhost:8000/asr</dd>
+            </div>
+            <div>
+              <dt>Last check</dt>
+              <dd id="service-timestamp">Not checked yet</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article class="status-card status-card--accent" id="next-step-card">
+          <header class="status-card__header">
+            <div>
+              <div class="status-card__label">Next step</div>
+              <h2>Stay on the local path</h2>
+            </div>
+            <span class="status-pill" data-status="local" id="path-status">
+              Local only
+            </span>
+          </header>
+
+          <p class="status-card__body" id="path-detail">
+            Keep the flow on-device. When the service is reachable, the app can
+            open captions without any cloud dependency.
+          </p>
+
+          <ul class="checklist" aria-label="Installer guidance">
+            <li>Start WhisperLiveKit on port 8000.</li>
+            <li>Confirm nothing else is using localhost:8000.</li>
+            <li>Run discovery again until the service is reachable.</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="guide-grid" aria-label="Recovery guidance">
+        <article class="guide-card">
+          <h2>What the check does</h2>
+          <p>
+            The installer probes the local HTTP endpoint first. A successful
+            response means the matching local WebSocket service should be
+            available at the same host and port.
+          </p>
+        </article>
+
+        <article class="guide-card">
+          <h2>Missing service</h2>
+          <p id="missing-detail">
+            If the service is missing, start the local ASR stack and retry the
+            discovery check from this page.
+          </p>
+        </article>
+      </section>
+
+      <section class="footer-card" aria-label="Installer status note">
+        <div>
+          <div class="footer-card__label">Local-only flow</div>
+          <p id="footer-note">
+            This installer does not configure cloud services. It only discovers
+            the local ASR endpoint used by the extension.
+          </p>
+        </div>
+        <div class="footer-card__note" id="installer-telemetry">
+          No data leaves the device during discovery.
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./index.ts"></script>
+  </body>
+</html>
