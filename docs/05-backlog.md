@@ -430,3 +430,28 @@ Rules:
 - Task: Define how to revert a bad extension release.
 - Task: Document the rollback communication steps.
 - Acceptance Criteria: A broken release can be withdrawn quickly and clearly.
+
+### B8-11 - Smoke checklist
+- Task: List the minimum startup checks for popup, overlay, sidebar, and diagnostics.
+- Task: Include a local ASR available and a local ASR missing case.
+- Acceptance Criteria: A single engineer can validate the core release path in under 10 minutes.
+
+### B8-12 - Accessibility regression pass
+- Task: Check keyboard focus, readable contrast, and ARIA labels on the primary surfaces.
+- Task: Record the exact pages or components that need follow-up when a regression is found.
+- Acceptance Criteria: Accessibility regressions are visible before a release is merged.
+
+### B8-13 - Support runbook expansion
+- Task: Map the most common user complaints to diagnostics outputs and recovery steps.
+- Task: Include a short "what to ask the user" section for support escalation.
+- Acceptance Criteria: Support can triage the most likely failures without engineering help.
+
+### B8-14 - Post-release verification
+- Task: Confirm install, start, reconnect, and export in a clean Chromium profile.
+- Task: Record the observed build version and any regressions.
+- Acceptance Criteria: Every release gets a documented real-world sanity check.
+
+### B8-15 - Manual regression coverage
+- Task: Add test cases for service missing, permission denied, reconnect, and export failure.
+- Task: Make each case point to the exact recovery action.
+- Acceptance Criteria: Known user-facing failures are covered by a repeatable checklist.
