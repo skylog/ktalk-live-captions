@@ -112,6 +112,8 @@ Rules:
 ### B2-09 - Keyboard shortcuts
 - Task: Add shortcuts for start, pause, and open transcript.
 - Task: Document shortcut conflicts and fallback behavior.
+- Task: Map each shortcut to the corresponding browser command and popup fallback.
+- Task: Document how users can rebind conflicts in the browser shortcuts page.
 - Acceptance Criteria: Keyboard control works without breaking page shortcuts.
 
 ### B2-10 - Overlay theming

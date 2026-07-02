@@ -349,6 +349,10 @@ function deriveAction(background: SessionSnapshot | null): { label: string; hint
   };
 }
 
+function isCaptionsActivePhase(phase: SessionSnapshot["session"]["phase"]): boolean {
+  return phase === "checking-agent" || phase === "connecting" || phase === "listening" || phase === "reconnecting";
+}
+
 function applySnapshot(background: SessionSnapshot | null): void {
   runtimeState.background = background;
   runtimeState.isRefreshing = false;
@@ -424,7 +428,7 @@ async function toggleCaptions(): Promise<void> {
   setState(makeLoadingState("action", deriveAction(background)));
 
   try {
-    if (phase === "listening" || phase === "connecting" || phase === "reconnecting") {
+    if (isCaptionsActivePhase(phase)) {
       await sendRuntimeMessage<RuntimeResponse>({
         type: "session.end",
         requestId: createRequestId(),
