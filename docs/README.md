@@ -8,9 +8,9 @@ This folder contains the expanded product package for Kontur Talk Live Captions.
 2. `02-architecture.md` - system design, protocols, storage, and security
 3. `03-ui-ux-spec.md` - interface behavior and wireframes
 4. `04-engineering.md` - standards, contracts, testing, and release process
-5. `05-backlog.md` - Jira-style backlog with epics, stories, tasks, and acceptance criteria
-6. `06-agent-runbook.md` - how to split work across parallel LLM agents
-7. `07-agent-prompts.md` - ready-to-use prompts for launching 5 agents in parallel
+5. `05-backlog.md` - Jira-style backlog with epics, stories, tasks, acceptance criteria, and the release/QA queue index
+6. `06-agent-runbook.md` - how to split work across parallel LLM agents and Queue 5 release/QA batches
+7. `07-agent-prompts.md` - ready-to-use prompts for launching 5 agents in parallel, including the Queue 5 closeout pack
 
 ## Source Documents
 

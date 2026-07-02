@@ -229,17 +229,33 @@ function normalizeTranscriptSegment(
 }
 
 function segmentFingerprint(segment: TranscriptSegment): string {
+  const timestampBucket = Math.floor(segment.timestamp / 10000);
   return [
     segment.sessionId,
     segment.meetingId,
-    segment.status,
-    segment.timestamp,
     segment.chunkIndex ?? "",
+    segment.sampleRate ?? "",
+    segment.channels ?? "",
+    timestampBucket,
     segment.text,
-    segment.confidence ?? "",
     segment.source,
     segment.speakerLabel ?? "",
   ].join("|");
+}
+
+function segmentPriority(status: TranscriptSegment["status"]): number {
+  return status === "final" ? 1 : 0;
+}
+
+function shouldReplaceSegment(existing: TranscriptSegment, incoming: TranscriptSegment): boolean {
+  const existingPriority = segmentPriority(existing.status);
+  const incomingPriority = segmentPriority(incoming.status);
+
+  if (incomingPriority !== existingPriority) {
+    return incomingPriority > existingPriority;
+  }
+
+  return true;
 }
 
 function dedupeSegments(segments: TranscriptSegment[]): TranscriptSegment[] {
@@ -254,7 +270,9 @@ function dedupeSegments(segments: TranscriptSegment[]): TranscriptSegment[] {
       (idKey ? indexById.get(idKey) : undefined) ?? indexByFingerprint.get(fingerprint);
 
     if (existingIndex !== undefined) {
-      ordered[existingIndex] = cloneTranscriptSegment(segment);
+      if (shouldReplaceSegment(ordered[existingIndex], segment)) {
+        ordered[existingIndex] = cloneTranscriptSegment(segment);
+      }
     } else {
       ordered.push(cloneTranscriptSegment(segment));
     }
@@ -277,11 +295,11 @@ function sortByRecency(records: TranscriptSessionRecord[]): TranscriptSessionRec
   });
 }
 
-function normalizeState(state: unknown): TranscriptStoreState {
+function normalizeState(state: unknown, clock: () => number): TranscriptStoreState {
   if (!isRecord(state) || state.version !== 1 || !Array.isArray(state.sessions)) {
     return {
       version: 1,
-      updatedAt: now(),
+      updatedAt: clock(),
       sessions: [],
     };
   }
@@ -302,7 +320,12 @@ function normalizeState(state: unknown): TranscriptStoreState {
         ? entry.transcript
             .filter(isRecord)
             .map((candidate) =>
-              normalizeStoredSegment(candidate, typeof entry.sessionId === "string" ? entry.sessionId : "", typeof entry.meetingId === "string" ? entry.meetingId : "", now),
+              normalizeStoredSegment(
+                candidate,
+                typeof entry.sessionId === "string" ? entry.sessionId : "",
+                typeof entry.meetingId === "string" ? entry.meetingId : "",
+                clock,
+              ),
             )
         : [],
     }))
@@ -310,7 +333,7 @@ function normalizeState(state: unknown): TranscriptStoreState {
 
   return {
     version: 1,
-    updatedAt: typeof state.updatedAt === "number" ? state.updatedAt : now(),
+    updatedAt: typeof state.updatedAt === "number" ? state.updatedAt : clock(),
     sessions,
   };
 }
@@ -344,7 +367,7 @@ export class TranscriptStore {
 
   private async readState(): Promise<TranscriptStoreState> {
     const stored = await this.adapter.read<unknown>(TRANSCRIPT_STORE_KEY);
-    return stored ? normalizeState(stored) : makeEmptyState(this.clock);
+    return stored ? normalizeState(stored, this.clock) : makeEmptyState(this.clock);
   }
 
   private async writeState(state: TranscriptStoreState): Promise<void> {
@@ -455,9 +478,13 @@ export class TranscriptStore {
     const semanticIndex = transcript.findIndex((entry) => segmentFingerprint(entry) === segmentFingerprint(normalized));
 
     if (index >= 0) {
-      transcript[index] = normalized;
+      if (shouldReplaceSegment(transcript[index], normalized)) {
+        transcript[index] = normalized;
+      }
     } else if (semanticIndex >= 0) {
-      transcript[semanticIndex] = normalized;
+      if (shouldReplaceSegment(transcript[semanticIndex], normalized)) {
+        transcript[semanticIndex] = normalized;
+      }
     } else {
       transcript.push(normalized);
     }
