@@ -1,29 +1,27 @@
 # Accessibility Regression Checklist
 
-Use this checklist during release verification when reviewing the main surfaces: `Popup`, `Overlay`, `Sidebar`, `Settings`, and `Onboarding`.
+Run this on `Popup`, `Overlay`, `Sidebar`, `Settings`, and `Onboarding` after UI changes and before release.
 
-## Check Keyboard Focus
+## Keyboard
 
 - Move through each surface with `Tab`, `Shift+Tab`, `Enter`, and `Esc`.
-- Confirm focus is visible on every interactive control.
-- Verify the focus order matches the visual order and does not trap the user.
-- Check that primary actions remain reachable in `Popup`, `Sidebar`, and `Overlay`.
+- Pass: focus is always visible, follows the visual order, and never traps the user.
+- Fail: any primary action becomes unreachable, loses focus visibility, or requires a mouse to continue.
 
-## Check Contrast And Readability
+## Contrast
 
-- Review text, icons, borders, and status chips against their backgrounds.
-- Confirm important states remain readable in `Error States`, `Empty States`, and `Loading States`.
-- Pay special attention to low-emphasis UI, disabled controls, and overlay chips.
-- If a state relies on color, verify there is also a text label or structural cue.
+- Review text, icons, borders, badges, and error copy against their backgrounds.
+- Pass: `Error States`, `Empty States`, and `Loading States` stay readable without relying on color alone.
+- Fail: low-emphasis UI, disabled controls, or overlay chips become hard to read.
 
-## Check Labels And Semantics
+## Labels And Semantics
 
 - Confirm buttons, toggles, and inputs have clear visible labels.
-- Verify ARIA labels or equivalent accessible names on icon-only controls.
-- Ensure status rows in `Agent Detection` and connection/error sections announce meaningful state, not generic text.
-- Check that duplicate controls like `Copy`, `TXT`, and `Markdown` are distinguishable by label and purpose.
+- Verify icon-only controls have an accessible name.
+- Ensure `Agent Detection` and connection status rows announce useful state, not generic text.
+- Keep duplicate actions like `Copy`, `TXT`, and `Markdown` distinguishable by label and purpose.
 
-## What To Record On Regression
+## Regression Notes
 
 Log the issue with:
 
@@ -33,8 +31,8 @@ Log the issue with:
 - Expected result versus actual result.
 - Browser, OS, and extension version.
 - Screenshot or short recording when the issue is visual.
-- If relevant, the current focus path or missing accessible name.
+- Current focus path or missing accessible name, if relevant.
 
 ## Release Rule
 
-- Do not ship if a regression blocks keyboard operation, removes readable contrast, or leaves a primary control unnamed.
+- Do not ship if keyboard operation breaks, contrast drops below readable, or a primary control is unnamed.

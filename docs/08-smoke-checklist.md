@@ -1,53 +1,47 @@
 # Smoke Checklist
 
-Use this checklist before a release. One engineer should be able to complete it in under 10 minutes on a clean Chromium profile.
+Run this before merge or release. One developer should be able to finish it on a clean Chromium profile in under 10 minutes.
 
 ## Prerequisites
 
-- Extension installed and enabled.
-- Local ASR service available at `localhost:8000` for the main pass.
-- A supported Kontur Talk meeting page open in a tab.
-- Browser shortcuts and permissions already granted for the test profile.
+- Extension installed and enabled in the test profile.
+- Local ASR service reachable at `localhost:8000`.
+- A supported Kontur Talk meeting tab is open.
+- Browser permissions and shortcuts are already granted.
 
-## Smoke Steps
+## Checks
 
-### 1. Popup
+1. Popup readiness
+- Open the popup.
+- Pass: the popup shows the current detected/ready state, and the main action is enabled only when the service is reachable.
+- Fail: blank UI, stale state, or a ready indicator that does not match the service.
 
-- Open the extension popup.
-- **Pass:** popup shows the current agent-detected / ready state, and the primary action is enabled when the service is reachable.
-- **Fail:** popup is blank, stale, or shows the wrong readiness state.
+2. Overlay mount
+- Start captions from the popup.
+- Pass: the overlay appears in the meeting tab, text is readable, and state copy is visible.
+- Fail: overlay missing, clipped, unreadable, or blocking the meeting UI.
 
-### 2. Overlay
+3. Sidebar session
+- Open the transcript sidebar.
+- Pass: the current session is shown, or an explicit empty state appears with export actions available.
+- Fail: sidebar does not open, drops the session, or renders broken layout.
 
-- Start captions from the popup and confirm the overlay appears in the meeting tab.
-- **Pass:** overlay renders with readable text, visible state copy, and no clipping.
-- **Fail:** overlay does not mount, is unreadable, or blocks the meeting UI.
+4. Live diagnostics
+- Check diagnostics with `localhost:8000` up.
+- Pass: health is reachable, the local endpoint is shown, and start/reconnect is available.
+- Fail: diagnostics report an error while the service is healthy.
 
-### 3. Sidebar
-
-- Open the transcript sidebar and verify the current session is visible.
-- **Pass:** sidebar shows transcript content or an explicit empty state, and export actions are available.
-- **Fail:** sidebar fails to open, loses the session, or shows broken layout.
-
-### 4. Diagnostics with local ASR available
-
-- Open diagnostics while the local service is running.
-- **Pass:** health is reported as reachable, the local endpoint is shown, and the session can start or reconnect.
-- **Fail:** diagnostics report an error when the service is actually reachable.
-
-### 5. Diagnostics with local ASR missing
-
+5. Missing service
 - Stop the local service and refresh diagnostics.
-- **Pass:** diagnostics report the service as missing or unreachable, and the recovery hint points to the local ASR setup path.
-- **Fail:** the app pretends the service is ready or gives no recovery guidance.
+- Pass: the UI reports the service as missing or unreachable and points to the local setup path.
+- Fail: the app still claims the service is ready or gives no recovery hint.
 
-### 6. End-to-end closeout
-
+6. Closeout
 - Stop captions and reopen the popup once.
-- **Pass:** the session state settles cleanly, and no surface shows a crash, spinner loop, or stale reconnect state.
-- **Fail:** any surface stays stuck, crashes, or reports an inconsistent session.
+- Pass: state settles cleanly with no crash, spinner loop, or stale reconnect state.
+- Fail: any surface remains inconsistent after shutdown.
 
-## Release Result
+## Release Rule
 
-- **Green:** all steps pass in both the available and missing ASR scenarios.
-- **Red:** any single fail blocks the release until the failure is understood and documented.
+- Any single fail blocks release until the issue is documented and understood.
+- Record the surface, state, exact text, screenshot, and build SHA for every fail.

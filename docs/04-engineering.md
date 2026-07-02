@@ -49,6 +49,14 @@ docs/
 - Reconnect retries must be bounded and surfaced in diagnostics.
 - Capture-to-caption latency should be visible in local debug views.
 
+## Release Quality Gates
+
+- Treat `docs/08-smoke-checklist.md` as the merge gate for core startup and session flow.
+- Treat `docs/09-accessibility-regression.md` as the merge gate for keyboard, labels, and contrast.
+- Treat `docs/11-post-release-verification.md` as the release gate for packaged builds.
+- Use `docs/12-manual-regression-coverage.md` for targeted checks when smoke or QA surfaces fail.
+- Stop the release if any gate fails; do not defer a red check to a later batch.
+
 ## Release Process
 
 1. Update docs if behavior changes.
