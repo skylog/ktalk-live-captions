@@ -174,7 +174,11 @@ export function createSessionManager(options: SessionManagerOptions = {}): Sessi
 
       return setPhase('checking-agent', reason, {
         meetingId: snapshot.meetingId,
-        sessionId: snapshot.sessionId,
+        sessionId: createId(),
+        startedAt: now(),
+        connectedAt: null,
+        agentReady: false,
+        transportReady: false,
         ...resetReconnectBudget(),
       });
     },
@@ -192,11 +196,17 @@ export function createSessionManager(options: SessionManagerOptions = {}): Sessi
         return update({}, 'no-meeting-id');
       }
 
-      ensureSessionId();
+      const nextSessionId =
+        snapshot.phase === 'idle' || snapshot.phase === 'finished' || !snapshot.sessionId
+          ? createId()
+          : snapshot.sessionId;
+
       return setPhase('connecting', reason, {
-        sessionId: snapshot.sessionId,
-        startedAt: snapshot.startedAt ?? now(),
+        sessionId: nextSessionId,
+        startedAt: snapshot.phase === 'idle' || snapshot.phase === 'finished' ? now() : snapshot.startedAt ?? now(),
         agentReady: true,
+        transportReady: false,
+        connectedAt: null,
         ...resetReconnectBudget(),
       });
     },
@@ -246,6 +256,8 @@ export function createSessionManager(options: SessionManagerOptions = {}): Sessi
           reconnectDelayMs: null,
           reconnectBudgetExceeded: true,
           transportReady: false,
+          agentReady: false,
+          connectedAt: null,
         });
       }
 
@@ -258,7 +270,9 @@ export function createSessionManager(options: SessionManagerOptions = {}): Sessi
     },
     markUnavailable(reason = 'service-unavailable') {
       return setPhase('finished', reason, {
+        agentReady: false,
         transportReady: false,
+        connectedAt: null,
         reconnectDelayMs: null,
         reconnectBudgetExceeded: snapshot.reconnectBudgetExceeded,
       });
@@ -269,8 +283,10 @@ export function createSessionManager(options: SessionManagerOptions = {}): Sessi
       }
 
       return setPhase('finished', reason, {
+        agentReady: false,
         transportReady: false,
         reconnectDelayMs: null,
+        connectedAt: null,
       });
     },
     reset() {

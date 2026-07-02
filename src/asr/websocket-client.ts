@@ -192,6 +192,8 @@ export class WebSocketTransport implements WebSocketTransportClient {
 
   private reconnectAttempts = 0;
 
+  private reconnectBudgetExceeded = false;
+
   private sessionStartMessage: SessionStartTransportMessage | null = null;
 
   private sessionStartSentForSocket = false;
@@ -225,6 +227,10 @@ export class WebSocketTransport implements WebSocketTransportClient {
 
     if (this.connectPromise) {
       return this.connectPromise;
+    }
+
+    if (this.reconnectBudgetExceeded) {
+      throw new Error("WebSocket reconnect budget exhausted.");
     }
 
     this.closeRequested = false;
@@ -315,8 +321,12 @@ export class WebSocketTransport implements WebSocketTransportClient {
       return;
     }
 
-    if (this.closeRequested) {
-      throw new Error("WebSocket transport is closing.");
+    if (this.closeRequested || this.reconnectBudgetExceeded) {
+      throw new Error(
+        this.reconnectBudgetExceeded
+          ? "WebSocket reconnect budget exhausted."
+          : "WebSocket transport is closing.",
+      );
     }
 
     const payload = JSON.stringify(message);
@@ -326,12 +336,17 @@ export class WebSocketTransport implements WebSocketTransportClient {
   }
 
   async sendSessionStart(message: SessionStartTransportMessage): Promise<void> {
-    if (this.closeRequested) {
+    if (this.closeRequested && !this.reconnectBudgetExceeded) {
       throw new Error("WebSocket transport is closing.");
     }
 
     this.sessionStartMessage = cloneSessionStart(message);
     this.sessionStartSentForSocket = false;
+    this.reconnectBudgetExceeded = false;
+    this.reconnectAttempts = 0;
+    this.closeRequested = false;
+    this.clearReconnectTimer();
+    this.queue = [];
 
     await this.connect();
     if (this.isConnected && !this.sessionStartSentForSocket) {
@@ -352,6 +367,7 @@ export class WebSocketTransport implements WebSocketTransportClient {
 
   async close(code = 1000, reason = "session-end"): Promise<void> {
     this.closeRequested = true;
+    this.reconnectBudgetExceeded = false;
     this.clearReconnectTimer();
 
     if (!this.socket) {
@@ -426,12 +442,19 @@ export class WebSocketTransport implements WebSocketTransportClient {
   }
 
   private scheduleReconnect(): void {
-    if (this.closeRequested || this.reconnectTimer || !this.sessionStartMessage) {
+    if (this.closeRequested || this.reconnectTimer || !this.sessionStartMessage || this.reconnectBudgetExceeded) {
       return;
     }
 
     this.reconnectAttempts += 1;
     if (this.reconnectAttempts > this.reconnectMaxAttempts) {
+      this.reconnectBudgetExceeded = true;
+      this.closeRequested = true;
+      this.clearReconnectTimer();
+      this.sessionStartMessage = null;
+      this.sessionStartSentForSocket = false;
+      this.queue = [];
+      this.socket = null;
       this.onError?.(new Error("WebSocket reconnect budget exhausted."));
       return;
     }
