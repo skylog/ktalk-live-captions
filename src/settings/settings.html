@@ -14,12 +14,13 @@
           <h1>Live captions settings</h1>
           <p>
             Tune capture source, overlay placement, caption density, and export defaults.
-            Preferences stay in this browser profile and are available to the extension.
+            Changes save automatically in this browser profile and stay local to the extension.
           </p>
         </div>
         <div class="hero__chips" aria-label="Settings status">
-          <span class="status-pill" data-status="loading" id="settings-status">Loading</span>
+          <span class="status-pill" data-status="loading" id="settings-status" aria-live="polite" aria-atomic="true">Loading</span>
           <span class="meta-chip">Local only</span>
+          <span class="meta-chip">Autosaves locally</span>
         </div>
       </section>
 
@@ -29,7 +30,7 @@
             <div class="panel__head">
               <div>
                 <h2>Capture source</h2>
-                <p>Choose which audio source the meeting session should prefer.</p>
+                <p>Pick the audio source the session should try first when a meeting opens.</p>
               </div>
               <span class="panel__value" id="capture-source-badge">Tab audio</span>
             </div>
@@ -38,13 +39,13 @@
               <label class="choice-card">
                 <input type="radio" name="capture-source" value="tab-audio" checked />
                 <span class="choice-card__title">Tab audio</span>
-                <span class="choice-card__copy">Capture the meeting tab stream.</span>
+                <span class="choice-card__copy">Prefer the meeting tab stream for the closest local capture.</span>
               </label>
 
               <label class="choice-card">
                 <input type="radio" name="capture-source" value="microphone" />
                 <span class="choice-card__title">Microphone</span>
-                <span class="choice-card__copy">Use the active microphone input.</span>
+                <span class="choice-card__copy">Use the active microphone when tab audio is not the right input.</span>
               </label>
             </div>
           </section>
@@ -53,7 +54,7 @@
             <div class="panel__head">
               <div>
                 <h2>Overlay position</h2>
-                <p>Pick the corner where captions appear by default.</p>
+                <p>Choose the default corner for the on-screen caption overlay.</p>
               </div>
               <span class="panel__value" id="overlay-badge">Bottom right</span>
             </div>
@@ -64,25 +65,25 @@
                 <label class="choice-card">
                   <input type="radio" name="overlay-position" value="bottom-right" checked />
                   <span class="choice-card__title">Bottom right</span>
-                  <span class="choice-card__copy">Keeps the view out of the way.</span>
+                  <span class="choice-card__copy">Best for keeping the overlay away from shared controls.</span>
                 </label>
 
                 <label class="choice-card">
                   <input type="radio" name="overlay-position" value="bottom-left" />
                   <span class="choice-card__title">Bottom left</span>
-                  <span class="choice-card__copy">Useful when controls sit on the right.</span>
+                  <span class="choice-card__copy">Useful when meeting controls already sit on the right.</span>
                 </label>
 
                 <label class="choice-card">
                   <input type="radio" name="overlay-position" value="top-right" />
                   <span class="choice-card__title">Top right</span>
-                  <span class="choice-card__copy">Keeps captions high and compact.</span>
+                  <span class="choice-card__copy">Keeps captions high when the lower screen area is busy.</span>
                 </label>
 
                 <label class="choice-card">
                   <input type="radio" name="overlay-position" value="top-left" />
                   <span class="choice-card__title">Top left</span>
-                  <span class="choice-card__copy">Mirrors a left-hand workspace.</span>
+                  <span class="choice-card__copy">Mirrors a left-hand workspace or pinned meeting panel.</span>
                 </label>
               </div>
             </fieldset>
@@ -92,7 +93,7 @@
             <div class="panel__head">
               <div>
                 <h2>Caption density</h2>
-                <p>Control how compact the overlay text should feel.</p>
+                <p>Set how tightly the caption text should wrap and stack in the overlay.</p>
               </div>
               <span class="panel__value" id="density-badge">Balanced</span>
             </div>
@@ -103,19 +104,19 @@
                 <label class="choice-card">
                   <input type="radio" name="caption-density" value="compact" />
                   <span class="choice-card__title">Compact</span>
-                  <span class="choice-card__copy">Short lines and tighter spacing.</span>
+                  <span class="choice-card__copy">Shows more text with shorter lines and tighter spacing.</span>
                 </label>
 
                 <label class="choice-card">
                   <input type="radio" name="caption-density" value="balanced" checked />
                   <span class="choice-card__title">Balanced</span>
-                  <span class="choice-card__copy">Readability first, still compact.</span>
+                  <span class="choice-card__copy">Keeps readability high while staying compact enough for meetings.</span>
                 </label>
 
                 <label class="choice-card">
                   <input type="radio" name="caption-density" value="relaxed" />
                   <span class="choice-card__title">Relaxed</span>
-                  <span class="choice-card__copy">More space for long sentences.</span>
+                  <span class="choice-card__copy">Gives longer sentences more breathing room.</span>
                 </label>
               </div>
             </fieldset>
@@ -125,7 +126,7 @@
             <div class="panel__head">
               <div>
                 <h2>Export defaults</h2>
-                <p>Set the preferred file format and included metadata.</p>
+                <p>Choose the default export format and which metadata should be included.</p>
               </div>
               <span class="panel__value" id="export-badge">TXT</span>
             </div>
@@ -136,13 +137,13 @@
                 <label class="choice-card">
                   <input type="radio" name="export-format" value="txt" checked />
                   <span class="choice-card__title">TXT</span>
-                  <span class="choice-card__copy">Plain text for simple notes.</span>
+                  <span class="choice-card__copy">Plain text for quick notes and lightweight sharing.</span>
                 </label>
 
                 <label class="choice-card">
                   <input type="radio" name="export-format" value="markdown" />
                   <span class="choice-card__title">Markdown</span>
-                  <span class="choice-card__copy">Structured text for docs and wikis.</span>
+                  <span class="choice-card__copy">Structured text for docs, wikis, and project logs.</span>
                 </label>
               </div>
             </fieldset>
@@ -152,7 +153,7 @@
                 <input type="checkbox" id="export-timestamps" checked />
                 <span>
                   <strong>Include timestamps</strong>
-                  <small>Add time markers to exported transcripts.</small>
+                  <small>Add local time markers to make transcript review easier.</small>
                 </span>
               </label>
 
@@ -160,7 +161,7 @@
                 <input type="checkbox" id="export-speaker-labels" />
                 <span>
                   <strong>Include speaker labels</strong>
-                  <small>Keep labels when they are available in the session.</small>
+                  <small>Keep speaker labels when the session provides them.</small>
                 </span>
               </label>
             </div>
@@ -170,7 +171,9 @@
             <button class="secondary-button" type="button" id="reset-settings">
               Reset defaults
             </button>
-            <p id="settings-save-note">Changes save locally in this browser profile.</p>
+            <p id="settings-save-note" role="status" aria-live="polite" aria-atomic="true">
+              Changes save locally in this browser profile.
+            </p>
           </footer>
         </form>
 
@@ -179,7 +182,7 @@
             <div class="panel__head">
               <div>
                 <h2>Live preview</h2>
-                <p>See how the overlay will feel with the current settings.</p>
+                <p>See how the overlay will feel with the currently saved settings.</p>
               </div>
             </div>
 
@@ -199,8 +202,8 @@
           <section class="panel">
             <div class="panel__head">
               <div>
-                <h2>Saved values</h2>
-                <p>These settings are available to other extension surfaces.</p>
+                <h2>Saved locally</h2>
+                <p>These are the values other extension surfaces read from browser storage.</p>
               </div>
             </div>
 
