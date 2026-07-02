@@ -7,34 +7,38 @@
     <link rel="stylesheet" href="./overlay.css" />
   </head>
   <body>
-    <main class="overlay-shell" data-shell="overlay" data-overlay-state="listening" data-overlay-theme="listening">
-      <section class="overlay-chip" data-idle-chip hidden>
-        <span class="overlay-chip__label">Live captions idle</span>
-        <span class="overlay-chip__hint">Waiting for meeting audio</span>
+    <main class="overlay-shell" data-shell="overlay" data-overlay-state="idle" data-overlay-theme="idle">
+      <section class="overlay-chip" data-state-chip>
+        <span class="overlay-chip__label" data-state-chip-label>Waiting for meeting audio</span>
+        <span class="overlay-chip__hint" data-state-chip-hint>
+          Open a supported meeting tab to begin local captions.
+        </span>
       </section>
 
-      <section class="overlay-panel" aria-label="Live captions">
+      <section class="overlay-panel" aria-label="Live captions" aria-live="polite">
         <header class="overlay-head">
           <div>
             <div class="overlay-kicker">Live captions</div>
-            <h1>Meeting transcript</h1>
+            <h1 data-overlay-title>Waiting for meeting audio</h1>
           </div>
           <span class="overlay-status" data-overlay-status aria-live="polite">Listening</span>
         </header>
 
+        <p class="overlay-summary" data-overlay-summary>
+          Captions stay local and update as soon as a meeting is detected.
+        </p>
+
         <div class="overlay-body" aria-live="polite">
-          <p class="caption-line caption-line--primary">
-            We should ship the first version this week.
+          <p class="caption-line caption-line--primary" data-caption-primary>
+            Waiting for meeting audio.
           </p>
-          <p class="caption-line caption-line--secondary">
-            Please keep the export format stable for note taking.
+          <p class="caption-line caption-line--secondary" data-caption-secondary>
+            The overlay stays small until captions begin.
           </p>
         </div>
 
         <footer class="overlay-actions">
-          <button class="overlay-button overlay-button--primary" type="button" data-action="toggle-pause">
-            Pause
-          </button>
+          <button class="overlay-button overlay-button--primary" type="button" data-action="toggle-pause">Start captions</button>
           <button class="overlay-button" type="button" data-action="open-transcript">
             Open transcript
           </button>
