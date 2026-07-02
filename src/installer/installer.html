@@ -29,6 +29,21 @@
         <p class="hero__summary" id="installer-summary">
           Waiting for the first discovery pass.
         </p>
+
+        <dl class="hero-metrics" aria-label="Discovery summary">
+          <div class="hero-metrics__item">
+            <dt>Checks run</dt>
+            <dd id="installer-attempts">0</dd>
+          </div>
+          <div class="hero-metrics__item">
+            <dt>Mode</dt>
+            <dd id="installer-mode">Performing the first local discovery check</dd>
+          </div>
+          <div class="hero-metrics__item">
+            <dt>Latency</dt>
+            <dd id="installer-latency">Waiting for a local response</dd>
+          </div>
+        </dl>
       </section>
 
       <section class="status-grid" aria-label="Discovery status">
@@ -76,6 +91,11 @@
             open captions without any cloud dependency.
           </p>
 
+          <p class="status-card__note" id="support-note">
+            Discovery only probes localhost:8000/asr. No cloud endpoints are
+            contacted.
+          </p>
+
           <ul class="checklist" aria-label="Installer guidance">
             <li>Start WhisperLiveKit on port 8000.</li>
             <li>Confirm nothing else is using localhost:8000.</li>
@@ -100,6 +120,11 @@
             If the service is missing, start the local ASR stack and retry the
             discovery check from this page.
           </p>
+          <ul class="support-list" aria-label="Missing service guidance">
+            <li>Use the machine running the extension.</li>
+            <li>Keep WhisperLiveKit on localhost:8000.</li>
+            <li>Retry after restarting the local service.</li>
+          </ul>
         </article>
       </section>
 
