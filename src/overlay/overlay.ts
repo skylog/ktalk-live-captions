@@ -169,6 +169,7 @@ function render(session: SessionSnapshot | null): void {
   const secondaryCaption = shell.querySelector<HTMLElement>(".caption-line--secondary");
 
   shell.dataset.overlayState = currentState;
+  shell.dataset.overlayTheme = currentState;
 
   if (panel) {
     panel.dataset.overlayState = currentState;
