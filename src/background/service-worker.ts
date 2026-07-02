@@ -55,6 +55,12 @@ interface ChromeActionAPI {
   };
 }
 
+interface ChromeCommandsAPI {
+  onCommand: {
+    addListener(callback: (command: string) => void): void;
+  };
+}
+
 type ContentBridgeRequest =
   | { type: "ktalk.content.getSnapshot"; reason?: string }
   | { type: "ktalk.content.refreshDetection"; reason?: string }
@@ -156,6 +162,7 @@ interface ChromeWindowsAPI {
 
 interface ChromeExtensionAPI {
   action: ChromeActionAPI;
+  commands: ChromeCommandsAPI;
   runtime: ChromeRuntimeAPI;
   tabs: ChromeTabsAPI;
   windows: ChromeWindowsAPI;
@@ -742,6 +749,10 @@ function getPopupPageUrl(): string {
   return chrome.runtime.getURL("src/popup/popup.html");
 }
 
+function getSidebarPageUrl(): string {
+  return chrome.runtime.getURL("src/sidebar/sidebar.html");
+}
+
 async function getUiRoutingState(): Promise<UiRoutingState> {
   const items = await getStorageItems(UI_ROUTING_STORAGE_KEY);
   return normalizeUiRoutingState(items[UI_ROUTING_STORAGE_KEY]);
@@ -830,6 +841,10 @@ async function openPopupSurface(): Promise<void> {
   });
 }
 
+async function openSidebarSurface(): Promise<void> {
+  await openPageInTab(getSidebarPageUrl());
+}
+
 async function handleActionClick(): Promise<void> {
   await bootstrapServiceWorker();
 
@@ -842,6 +857,37 @@ async function handleActionClick(): Promise<void> {
   }
 
   await openPopupSurface();
+}
+
+async function toggleCaptionsFromShortcut(): Promise<void> {
+  await bootstrapServiceWorker();
+
+  if (isCaptionsActivePhase(sessionState.phase)) {
+    await endSession({
+      type: "session.end",
+      reason: "shortcut-stop-requested",
+    });
+    return;
+  }
+
+  await startSession();
+}
+
+async function handleCommand(command: string): Promise<void> {
+  switch (command) {
+    case "toggle-captions":
+      await toggleCaptionsFromShortcut();
+      break;
+    case "open-transcript":
+      await openSidebarSurface();
+      break;
+    default:
+      break;
+  }
+}
+
+function isCaptionsActivePhase(phase: SessionState["phase"]): boolean {
+  return phase === "checking-agent" || phase === "connecting" || phase === "listening" || phase === "reconnecting";
 }
 
 async function persistState(): Promise<void> {
@@ -1190,6 +1236,10 @@ chrome.runtime.onStartup.addListener(() => {
 
 chrome.action.onClicked.addListener(() => {
   void handleActionClick();
+});
+
+chrome.commands.onCommand.addListener((command) => {
+  void handleCommand(command);
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

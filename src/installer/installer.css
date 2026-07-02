@@ -187,6 +187,35 @@ button {
   line-height: 1.55;
 }
 
+.hero-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 22px 0 0;
+}
+
+.hero-metrics__item {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.hero-metrics dt {
+  color: var(--soft);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.hero-metrics dd {
+  margin: 8px 0 0;
+  color: var(--text);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 .status-pill {
   display: inline-flex;
   align-items: center;
@@ -285,6 +314,16 @@ button {
   line-height: 1.65;
 }
 
+.status-card__note {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(120, 215, 161, 0.18);
+  border-radius: var(--radius-sm);
+  background: rgba(120, 215, 161, 0.06);
+  color: var(--accent-2);
+  line-height: 1.55;
+}
+
 .status-meta {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -325,6 +364,17 @@ button {
   margin: 14px 0 0;
   color: var(--muted);
   line-height: 1.7;
+}
+
+.support-list {
+  margin: 16px 0 0;
+  padding: 0 0 0 18px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.support-list li + li {
+  margin-top: 8px;
 }
 
 .footer-card {
@@ -392,6 +442,10 @@ button {
   }
 
   .status-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-metrics {
     grid-template-columns: 1fr;
   }
 }

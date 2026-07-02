@@ -48,12 +48,16 @@ const elements = {
   primaryAction: document.getElementById("retry-discovery") as HTMLButtonElement | null,
   installerPhase: document.getElementById("installer-phase"),
   installerSummary: document.getElementById("installer-summary"),
+  installerAttempts: document.getElementById("installer-attempts"),
+  installerMode: document.getElementById("installer-mode"),
+  installerLatency: document.getElementById("installer-latency"),
   serviceStatus: document.getElementById("service-status"),
   serviceDetail: document.getElementById("service-detail"),
   serviceEndpoint: document.getElementById("service-endpoint"),
   serviceTimestamp: document.getElementById("service-timestamp"),
   pathStatus: document.getElementById("path-status"),
   pathDetail: document.getElementById("path-detail"),
+  supportNote: document.getElementById("support-note"),
   missingDetail: document.getElementById("missing-detail"),
   footerNote: document.getElementById("footer-note"),
   telemetry: document.getElementById("installer-telemetry"),
@@ -82,6 +86,80 @@ function setText(element: HTMLElement | null, value: string): void {
   if (element) {
     element.textContent = value;
   }
+}
+
+function describePhase(state: InstallerSnapshot): string {
+  switch (state.phase) {
+    case "ready":
+      return "Local service found";
+    case "missing":
+      return state.retryCount > 0
+        ? "Retry complete, no local service answered"
+        : "Initial check found no local service";
+    case "retrying":
+      return `Retrying local discovery, attempt ${state.retryCount + 1}`;
+    case "checking":
+    default:
+      return state.retryCount > 0
+        ? `Checking local service again, attempt ${state.retryCount + 1}`
+        : "Performing the first local discovery check";
+  }
+}
+
+function describeLatency(state: InstallerSnapshot): string {
+  if (typeof state.latencyMs === "number") {
+    return `${state.latencyMs} ms on localhost`;
+  }
+
+  if (state.phase === "checking" || state.phase === "retrying") {
+    return "Waiting for a local response";
+  }
+
+  return "No response time recorded";
+}
+
+function describeSupportNote(state: InstallerSnapshot): string {
+  if (state.phase === "ready") {
+    return "The local endpoint answered. If WhisperLiveKit restarts later, run discovery again from this page.";
+  }
+
+  if (state.phase === "missing") {
+    return "Start WhisperLiveKit on this machine, confirm localhost:8000 is free, then retry discovery here.";
+  }
+
+  return "Discovery only probes localhost:8000/asr. No cloud endpoints are contacted.";
+}
+
+function describeFooterNote(state: InstallerSnapshot): string {
+  if (state.phase === "ready") {
+    return "Discovery is complete and the extension can stay on-device.";
+  }
+
+  if (state.phase === "missing") {
+    return "The installer stays local while it waits for the ASR service to come online.";
+  }
+
+  return "The installer keeps checking the local ASR endpoint used by the extension.";
+}
+
+function getPrimaryActionLabel(state: InstallerSnapshot): string {
+  if (state.phase === "checking") {
+    return "Checking local service";
+  }
+
+  if (state.phase === "retrying") {
+    return "Retrying discovery";
+  }
+
+  if (state.phase === "missing") {
+    return "Retry local service";
+  }
+
+  if (state.phase === "ready") {
+    return "Recheck local service";
+  }
+
+  return "Check local service";
 }
 
 function emitStateEvent(): void {
@@ -126,15 +204,13 @@ function render(): void {
 
   if (elements.primaryAction) {
     elements.primaryAction.disabled = state.phase === "checking" || state.phase === "retrying";
-    elements.primaryAction.textContent =
-      state.phase === "checking"
-        ? "Checking local service"
-        : state.phase === "retrying"
-          ? "Retrying discovery"
-          : "Check local service";
+    elements.primaryAction.textContent = getPrimaryActionLabel(state);
   }
 
   setText(elements.installerSummary, state.detail);
+  setText(elements.installerAttempts, `${state.retryCount}`);
+  setText(elements.installerMode, describePhase(state));
+  setText(elements.installerLatency, describeLatency(state));
   setText(elements.serviceDetail, state.detail);
   setText(elements.serviceEndpoint, state.endpoint);
   setText(
@@ -147,39 +223,42 @@ function render(): void {
       elements.pathDetail,
       "The local ASR service is reachable. The app can continue without any cloud dependency.",
     );
+    setText(elements.supportNote, describeSupportNote(state));
     setText(
       elements.missingDetail,
       "No recovery steps are needed right now. The local endpoint answered the discovery probe.",
     );
     setText(
       elements.footerNote,
-      "The installer has confirmed the local ASR endpoint and can be opened again later if the service changes.",
+      describeFooterNote(state),
     );
   } else if (state.phase === "missing") {
     setText(
       elements.pathDetail,
       "The local ASR service is still missing. Start WhisperLiveKit on this machine, then run discovery again.",
     );
+    setText(elements.supportNote, describeSupportNote(state));
     setText(
       elements.missingDetail,
       "If the endpoint does not answer, confirm that WhisperLiveKit is running on localhost:8000 and that nothing else is bound to the same port.",
     );
     setText(
       elements.footerNote,
-      "Discovery stays local. Nothing is uploaded while the installer checks the endpoint.",
+      describeFooterNote(state),
     );
   } else {
     setText(
       elements.pathDetail,
       "The installer is probing localhost now. Keep the service local so the extension stays on-device.",
     );
+    setText(elements.supportNote, describeSupportNote(state));
     setText(
       elements.missingDetail,
       "If the service is absent, the first check will classify it as missing and keep the flow on this page.",
     );
     setText(
       elements.footerNote,
-      "The installer only probes the localhost endpoint used by the extension.",
+      describeFooterNote(state),
     );
   }
 

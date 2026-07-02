@@ -23,6 +23,7 @@ type PopupState = {
 type PopupRuntimeState = {
   background: SessionSnapshot | null;
   isRefreshing: boolean;
+  isActionPending: boolean;
 };
 
 const defaultState: PopupState = {
@@ -46,6 +47,7 @@ const state: PopupState = { ...defaultState };
 const runtimeState: PopupRuntimeState = {
   background: null,
   isRefreshing: false,
+  isActionPending: false,
 };
 
 const popupTitleEl = document.getElementById("popup-title");
@@ -90,19 +92,13 @@ function render(): void {
 
   if (primaryActionEl) {
     primaryActionEl.textContent = state.actionLabel;
-    primaryActionEl.disabled = runtimeState.isRefreshing;
-    primaryActionEl.setAttribute(
-      "aria-busy",
-      runtimeState.isRefreshing ? "true" : "false",
-    );
+    primaryActionEl.disabled = runtimeState.isActionPending;
+    primaryActionEl.setAttribute("aria-busy", runtimeState.isActionPending ? "true" : "false");
   }
 
   if (refreshActionEl) {
-    refreshActionEl.disabled = runtimeState.isRefreshing;
-    refreshActionEl.setAttribute(
-      "aria-busy",
-      runtimeState.isRefreshing ? "true" : "false",
-    );
+    refreshActionEl.disabled = runtimeState.isRefreshing || runtimeState.isActionPending;
+    refreshActionEl.setAttribute("aria-busy", runtimeState.isRefreshing ? "true" : "false");
   }
 
   if (actionHintEl) {
@@ -353,6 +349,10 @@ function deriveAction(background: SessionSnapshot | null): { label: string; hint
   };
 }
 
+function isCaptionsActivePhase(phase: SessionSnapshot["session"]["phase"]): boolean {
+  return phase === "checking-agent" || phase === "connecting" || phase === "listening" || phase === "reconnecting";
+}
+
 function applySnapshot(background: SessionSnapshot | null): void {
   runtimeState.background = background;
   runtimeState.isRefreshing = false;
@@ -424,24 +424,29 @@ async function toggleCaptions(): Promise<void> {
   const background = runtimeState.background;
   const phase = background?.session.phase ?? "idle";
 
-  runtimeState.isRefreshing = true;
+  runtimeState.isActionPending = true;
   setState(makeLoadingState("action", deriveAction(background)));
 
-  if (phase === "listening" || phase === "connecting" || phase === "reconnecting") {
+  try {
+    if (isCaptionsActivePhase(phase)) {
+      await sendRuntimeMessage<RuntimeResponse>({
+        type: "session.end",
+        requestId: createRequestId(),
+        reason: "popup-stop-requested",
+      });
+      await refreshFromRuntime("action");
+      return;
+    }
+
     await sendRuntimeMessage<RuntimeResponse>({
-      type: "session.end",
+      type: "session.start",
       requestId: createRequestId(),
-      reason: "popup-stop-requested",
     });
     await refreshFromRuntime("action");
-    return;
+  } finally {
+    runtimeState.isActionPending = false;
+    render();
   }
-
-  await sendRuntimeMessage<RuntimeResponse>({
-    type: "session.start",
-    requestId: createRequestId(),
-  });
-  await refreshFromRuntime("action");
 }
 
 document.addEventListener("DOMContentLoaded", () => {

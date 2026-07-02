@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="./overlay.css" />
   </head>
   <body>
-    <main class="overlay-shell" data-shell="overlay" data-overlay-state="idle">
+    <main class="overlay-shell" data-shell="overlay" data-overlay-state="idle" data-overlay-theme="idle">
       <section class="overlay-chip" data-state-chip>
         <span class="overlay-chip__label" data-state-chip-label>Waiting for meeting audio</span>
         <span class="overlay-chip__hint" data-state-chip-hint>
@@ -21,7 +21,7 @@
             <div class="overlay-kicker">Live captions</div>
             <h1 data-overlay-title>Waiting for meeting audio</h1>
           </div>
-          <span class="overlay-status" data-overlay-status>Listening</span>
+          <span class="overlay-status" data-overlay-status aria-live="polite">Listening</span>
         </header>
 
         <p class="overlay-summary" data-overlay-summary>

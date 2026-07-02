@@ -31,8 +31,9 @@ body {
 
 body {
   background:
-    radial-gradient(circle at top, var(--overlay-glow), transparent 38%),
-    linear-gradient(180deg, rgba(3, 7, 10, 0.94), rgba(8, 12, 17, 0.98));
+    radial-gradient(circle at 14% 8%, rgba(124, 228, 218, 0.16), transparent 28%),
+    radial-gradient(circle at 92% 14%, rgba(126, 154, 255, 0.12), transparent 24%),
+    linear-gradient(180deg, rgba(3, 7, 10, 0.95), rgba(8, 12, 17, 0.99));
   color: var(--overlay-text);
 }
 
@@ -46,8 +47,21 @@ button {
   display: grid;
   gap: 10px;
   place-items: end start;
-  align-content: end;
-  justify-items: start;
+  position: relative;
+  isolation: isolate;
+}
+
+.overlay-shell::before {
+  content: "";
+  position: absolute;
+  inset: auto auto 10px 10px;
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(124, 228, 218, 0.15), transparent 68%);
+  filter: blur(6px);
+  pointer-events: none;
+  z-index: -1;
 }
 
 .overlay-chip,
@@ -66,6 +80,18 @@ button {
   padding: 10px 12px;
   display: grid;
   gap: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.overlay-chip::after,
+.overlay-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 40%);
+  pointer-events: none;
 }
 
 .overlay-chip__label {
@@ -95,6 +121,29 @@ button {
   padding: 15px;
   display: grid;
   gap: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.overlay-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, rgba(124, 228, 218, 0.9), rgba(124, 228, 218, 0.25));
+}
+
+.overlay-shell[data-overlay-theme="reconnecting"] .overlay-panel::before {
+  background: linear-gradient(90deg, rgba(245, 201, 108, 0.95), rgba(245, 201, 108, 0.24));
+}
+
+.overlay-shell[data-overlay-theme="missing"] .overlay-panel::before {
+  background: linear-gradient(90deg, rgba(239, 138, 138, 0.95), rgba(239, 138, 138, 0.24));
+}
+
+.overlay-shell[data-overlay-theme="idle"] .overlay-panel::before {
+  background: linear-gradient(90deg, rgba(152, 181, 207, 0.75), rgba(152, 181, 207, 0.18));
 }
 
 .overlay-head {
@@ -106,7 +155,7 @@ button {
 
 .overlay-head h1 {
   margin: 4px 0 0;
-  font-size: clamp(17px, 2.1vw, 19px);
+  font-size: 19px;
   line-height: 1.15;
 }
 
@@ -169,6 +218,7 @@ button {
 .overlay-button--primary {
   border-color: rgba(124, 228, 218, 0.34);
   background: linear-gradient(180deg, rgba(124, 228, 218, 0.22), rgba(124, 228, 218, 0.12));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
 }
 
 .overlay-shell[data-overlay-state="idle"] {

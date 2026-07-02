@@ -38,19 +38,18 @@ function deriveOverlayState(session: SessionSnapshot | null): OverlayState {
     return "reconnecting";
   }
 
-  const hasTranscript = session.transcript.length > 0;
-  const activePhase =
-    session.session.phase === "checking-agent" ||
-    session.session.phase === "connecting" ||
-    session.session.phase === "listening";
-
   if (
     session.session.health.status === "unreachable" ||
     session.session.lastError?.code === "service-unreachable" ||
     session.session.lastError?.code === "permission-denied" ||
     session.session.lastError?.code === "capture-failed"
   ) {
-    if (activePhase || !hasTranscript) {
+    if (
+      session.session.phase === "checking-agent" ||
+      session.session.phase === "connecting" ||
+      session.session.phase === "listening" ||
+      session.transcript.length === 0
+    ) {
       return "missing";
     }
   }
@@ -173,6 +172,7 @@ function render(session: SessionSnapshot | null): void {
   const secondaryCaption = shell.querySelector<HTMLElement>(".caption-line--secondary");
 
   shell.dataset.overlayState = currentState;
+  shell.dataset.overlayTheme = currentState;
 
   if (panel) {
     panel.dataset.overlayState = currentState;
