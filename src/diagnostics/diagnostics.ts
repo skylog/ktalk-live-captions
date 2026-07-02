@@ -114,7 +114,7 @@ const ERROR_CATALOG: ReadonlyArray<ErrorCatalogEntry> = [
     description:
       "The local ASR service did not answer the health probe or returned an unavailable state.",
     recovery:
-      "Start the service on localhost:8000, confirm the WebSocket endpoint is reachable, then refresh diagnostics.",
+      "Start the service on localhost:8000, then refresh diagnostics.",
     severity: "error",
   },
   {
@@ -123,7 +123,7 @@ const ERROR_CATALOG: ReadonlyArray<ErrorCatalogEntry> = [
     description:
       "Chrome blocked one or more capture permissions required for the local audio pipeline.",
     recovery:
-      "Reload the extension, confirm the manifest permissions are present, and grant the capture prompt again.",
+      "Reload the extension, then grant the capture prompt again.",
     severity: "error",
   },
   {
@@ -132,7 +132,7 @@ const ERROR_CATALOG: ReadonlyArray<ErrorCatalogEntry> = [
     description:
       "The browser could not open the chosen audio source or build the capture stream.",
     recovery:
-      "Check that the meeting tab is active, audio is playing, and no other tab-capture flow is already running.",
+      "Keep the meeting tab active, confirm audio is playing, and try capture again.",
     severity: "warning",
   },
   {
@@ -141,7 +141,7 @@ const ERROR_CATALOG: ReadonlyArray<ErrorCatalogEntry> = [
     description:
       "The transport disconnected while captions were active or while the app was trying to reconnect.",
     recovery:
-      "Confirm the local ASR service is still running, then restart the caption session after the transport settles.",
+      "Wait for the local service to recover, then restart captions.",
     severity: "warning",
   },
   {
@@ -150,7 +150,7 @@ const ERROR_CATALOG: ReadonlyArray<ErrorCatalogEntry> = [
     description:
       "The background worker received a message shape it did not recognize or could not validate.",
     recovery:
-      "Refresh the extension to reload the current bundle and re-run the diagnostics view.",
+      "Refresh the extension to reload the current bundle.",
     severity: "warning",
   },
   {
@@ -159,7 +159,7 @@ const ERROR_CATALOG: ReadonlyArray<ErrorCatalogEntry> = [
     description:
       "The worker reported an error that does not match a known recovery path.",
     recovery:
-      "Use the raw snapshot and local logs to identify the failing step, then retry the session.",
+      "Copy the snapshot, inspect local logs, then retry the session once.",
     severity: "unknown",
   },
 ];
@@ -370,6 +370,48 @@ function setStatusBadge(element: HTMLElement | null, status: DiagnosticsStatus, 
 
   element.dataset.status = status;
   element.textContent = label;
+}
+
+function describeDiagnosticsStatus(): string {
+  if (
+    state.updatedAt === null &&
+    state.runtime.status === "unknown" &&
+    state.service.status === "unknown" &&
+    state.capture.status === "unknown" &&
+    state.reconnect.status === "unknown"
+  ) {
+    return "Waiting for the first local check.";
+  }
+
+  if (state.runtime.status !== "healthy") {
+    return "Reload the extension, then refresh diagnostics.";
+  }
+
+  if (state.service.status === "error") {
+    return "Start WhisperLiveKit on localhost:8000, then refresh diagnostics.";
+  }
+
+  if (state.service.status === "warning") {
+    return state.service.reason ?? "The local service is degraded. Refresh diagnostics after it settles.";
+  }
+
+  if (state.capture.status === "error") {
+    return "Reload the extension, grant capture access, then refresh diagnostics.";
+  }
+
+  if (state.capture.status === "warning") {
+    return "Review the missing capture permissions, then refresh diagnostics.";
+  }
+
+  if (state.capture.status === "unknown") {
+    return "Browser permission APIs are unavailable here. Reopen diagnostics from the extension.";
+  }
+
+  if (state.reconnect.status === "error" || state.reconnect.status === "warning") {
+    return state.reconnect.nextStep;
+  }
+
+  return "Local setup is ready. Captions can start.";
 }
 
 async function sendRuntimeMessage<T extends RuntimeResponse>(message: RuntimeRequest): Promise<T | null> {
@@ -766,7 +808,7 @@ function render(elements: DiagnosticsElements): void {
 
   renderCatalog(elements);
 
-  elements.status.textContent = `Last refreshed ${state.updatedAt ? formatTimestamp(state.updatedAt) : "just now"}.`;
+  elements.status.textContent = describeDiagnosticsStatus();
 
   window.dispatchEvent(
     new CustomEvent(DIAGNOSTICS_EVENTS.stateChanged, {
