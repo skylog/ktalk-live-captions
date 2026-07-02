@@ -15,7 +15,8 @@
           <p>
             Inspect local service health, capture permissions, and reconnect
             failures without opening settings. This view stays focused on the
-            runtime state needed to debug caption startup.
+            runtime state needed to debug caption startup, support handoff, and
+            local rollback checks.
           </p>
         </div>
 
@@ -212,6 +213,25 @@
               <dd id="session-last-final-text">None</dd>
             </div>
           </dl>
+        </article>
+
+        <article class="detail-card">
+          <div class="detail-card__header">
+            <div>
+              <div class="detail-card__label">Rollback support</div>
+              <h2>Keep a local recovery trail</h2>
+            </div>
+          </div>
+          <p class="detail-card__body">
+            If a recent release regressed, copy this snapshot before changing
+            permissions or reinstalling the extension. Record the runtime
+            version, protocol version, endpoint, session id, and meeting id so
+            you can compare them with the previous known-good local build.
+          </p>
+          <p class="detail-card__footnote">
+            Restore the previous packaged extension locally, then refresh
+            diagnostics. No cloud rollback steps are required.
+          </p>
         </article>
 
         <article class="detail-card">

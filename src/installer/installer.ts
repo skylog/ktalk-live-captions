@@ -120,26 +120,26 @@ function describeLatency(state: InstallerSnapshot): string {
 
 function describeSupportNote(state: InstallerSnapshot): string {
   if (state.phase === "ready") {
-    return "The local endpoint answered. If WhisperLiveKit restarts later, run the check again from this page.";
+    return "The local endpoint answered. If WhisperLiveKit restarts later, run the check again from this page or copy diagnostics before changing builds.";
   }
 
   if (state.phase === "missing") {
-    return "Start WhisperLiveKit on this machine, then check localhost:8000/asr again.";
+    return "Start WhisperLiveKit on this machine, then check localhost:8000/asr again. If this failure followed a release update, capture diagnostics before rolling back.";
   }
 
-  return "Discovery only probes localhost:8000/asr. No cloud endpoints are contacted.";
+  return "Discovery only probes localhost:8000/asr. No cloud endpoints are contacted, and diagnostics stays available for local handoff.";
 }
 
 function describeFooterNote(state: InstallerSnapshot): string {
   if (state.phase === "ready") {
-    return "Ready to continue. Open the popup to start captions.";
+    return "Ready to continue. Open the popup to start captions, or use diagnostics if you need to compare builds.";
   }
 
   if (state.phase === "missing") {
-    return "The installer stays local while it waits for the ASR service to come online.";
+    return "The installer stays local while it waits for the ASR service to come online. Keep the current snapshot if you need a rollback trail.";
   }
 
-  return "The installer keeps checking the local ASR endpoint used by the extension.";
+  return "The installer keeps checking the local ASR endpoint used by the extension. No remote recovery path is involved.";
 }
 
 function getPrimaryActionLabel(state: InstallerSnapshot): string {
@@ -221,7 +221,7 @@ function render(): void {
   if (state.phase === "ready") {
     setText(
       elements.pathDetail,
-      "The local ASR service is reachable. Open the popup to start captions without leaving the local path.",
+      "The local ASR service is reachable. Open the popup to start captions without leaving the local path, and keep diagnostics nearby if you are validating a release change.",
     );
     setText(elements.supportNote, describeSupportNote(state));
     setText(
@@ -240,7 +240,7 @@ function render(): void {
     setText(elements.supportNote, describeSupportNote(state));
     setText(
       elements.missingDetail,
-      "If the endpoint does not answer, confirm that WhisperLiveKit is running on localhost:8000 and that nothing else is bound to the same port.",
+      "If the endpoint does not answer, confirm that WhisperLiveKit is running on localhost:8000 and that nothing else is bound to the same port. If the issue appeared after an update, copy diagnostics before restoring the previous local build.",
     );
     setText(
       elements.footerNote,
@@ -249,7 +249,7 @@ function render(): void {
   } else {
     setText(
       elements.pathDetail,
-      "The installer is probing localhost now. Keep the service local so the extension stays on-device.",
+      "The installer is probing localhost now. Keep the service local so the extension stays on-device and the recovery path stays local-only.",
     );
     setText(elements.supportNote, describeSupportNote(state));
     setText(
@@ -265,10 +265,10 @@ function render(): void {
   setText(
     elements.telemetry,
     state.phase === "ready"
-      ? "Local service discovered successfully. Open the popup to continue."
+      ? "Local service discovered successfully. Open the popup to continue or diagnostics to capture a local handoff."
       : state.phase === "missing"
-        ? "Discovery completed with no reachable local service. Start WhisperLiveKit and try again."
-        : "Probing localhost for a local ASR service.",
+        ? "Discovery completed with no reachable local service. Start WhisperLiveKit and try again, or keep diagnostics open for rollback notes."
+        : "Probing localhost for a local ASR service. No remote recovery path is involved.",
   );
 }
 

@@ -15,6 +15,8 @@
           Speech stays on this machine. This page checks whether WhisperLiveKit
           is reachable at <span class="inline-code">localhost:8000/asr</span>,
           keeps the setup flow local-only, and points to the next recovery step.
+          If a fresh release changed the behavior, capture diagnostics before
+          you switch builds.
         </p>
 
         <div class="hero__actions">
@@ -93,7 +95,7 @@
 
           <p class="status-card__note" id="support-note">
             Discovery only probes localhost:8000/asr. No cloud endpoints are
-            contacted.
+            contacted, and the handoff to diagnostics stays local.
           </p>
 
           <ul class="checklist" aria-label="Installer guidance">
@@ -118,7 +120,8 @@
           <h2>Missing service</h2>
           <p id="missing-detail">
             If the service is missing, start the local ASR stack and retry the
-            discovery check from this page.
+            discovery check from this page. If the issue appeared after an
+            update, copy diagnostics before restoring the previous local build.
           </p>
           <ul class="support-list" aria-label="Missing service guidance">
             <li>Use the machine running the extension.</li>
@@ -133,7 +136,8 @@
           <div class="footer-card__label">Local-only flow</div>
           <p id="footer-note">
             This installer does not configure cloud services. It only discovers
-            the local ASR endpoint used by the extension.
+            the local ASR endpoint used by the extension, and keeps rollback
+            recovery local if the latest build regressed.
           </p>
         </div>
         <div class="footer-card__note" id="installer-telemetry">
