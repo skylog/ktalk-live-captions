@@ -57,9 +57,15 @@ interface WebSocketLike {
   removeEventListener(type: "open" | "message" | "error" | "close", listener: (event: Event) => void): void;
 }
 
-const DEFAULT_RECONNECT_MAX_ATTEMPTS = 5;
-const DEFAULT_RECONNECT_BASE_DELAY_MS = 400;
-const DEFAULT_RECONNECT_MAX_DELAY_MS = 4000;
+export const DEFAULT_RECONNECT_MAX_ATTEMPTS = 5;
+export const DEFAULT_RECONNECT_BASE_DELAY_MS = 400;
+export const DEFAULT_RECONNECT_MAX_DELAY_MS = 4000;
+
+export const LOCAL_ASR_RECONNECT_BUDGET = Object.freeze({
+  maxAttempts: DEFAULT_RECONNECT_MAX_ATTEMPTS,
+  baseDelayMs: DEFAULT_RECONNECT_BASE_DELAY_MS,
+  maxDelayMs: DEFAULT_RECONNECT_MAX_DELAY_MS,
+});
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;

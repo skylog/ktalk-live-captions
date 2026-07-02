@@ -152,32 +152,11 @@ interface ChromeTabsAPI {
   ): void;
 }
 
-interface ChromeWindowsAPI {
-  create(
-    createData: {
-      focused?: boolean;
-      height?: number;
-      type?: "normal" | "popup";
-      url?: string;
-      width?: number;
-    },
-    callback?: (window: { id?: number } | undefined) => void,
-  ): void;
-  update(
-    windowId: number,
-    updateInfo: {
-      focused?: boolean;
-    },
-    callback?: (window: { id?: number } | undefined) => void,
-  ): void;
-}
-
 interface ChromeExtensionAPI {
   action: ChromeActionAPI;
   commands: ChromeCommandsAPI;
   runtime: ChromeRuntimeAPI;
   tabs: ChromeTabsAPI;
-  windows: ChromeWindowsAPI;
   storage: {
     local: ChromeStorageArea;
   };
@@ -476,7 +455,9 @@ async function probeLocalAsrHealth(reason = "health-probe"): Promise<ServiceHeal
     const response = await fetch(LOCAL_ASR_HTTP_URL, {
       method: "GET",
       cache: "no-store",
+      redirect: "error",
       credentials: "omit",
+      referrerPolicy: "no-referrer",
       signal: controller.signal,
     });
     const latencyMs = now() - checkedAt;
@@ -798,14 +779,6 @@ async function focusTab(tab: { id?: number; windowId?: number }): Promise<void> 
       });
     });
   }
-
-  if (typeof tab.windowId === "number") {
-    await new Promise<void>((resolve) => {
-      chrome.windows.update(tab.windowId as number, { focused: true }, () => {
-        resolve();
-      });
-    });
-  }
 }
 
 async function queryTabsByUrl(url: string): Promise<Array<{ id?: number; windowId?: number; url?: string }>> {
@@ -837,36 +810,7 @@ async function openOnboardingSurface(): Promise<void> {
 }
 
 async function openPopupSurface(): Promise<void> {
-  const popupUrl = getPopupPageUrl();
-  const tabs = await queryTabsByUrl(popupUrl);
-  const existingTab = tabs[0];
-
-  if (existingTab) {
-    await focusTab(existingTab);
-    return;
-  }
-
-  await new Promise<void>((resolve) => {
-    chrome.windows.create(
-      {
-        url: popupUrl,
-        type: "popup",
-        focused: true,
-        width: 420,
-        height: 720,
-      },
-      (window) => {
-        if (chrome.runtime.lastError || !window) {
-          chrome.tabs.create({ url: popupUrl, active: true }, () => {
-            resolve();
-          });
-          return;
-        }
-
-        resolve();
-      },
-    );
-  });
+  await openPageInTab(getPopupPageUrl());
 }
 
 async function openSidebarSurface(): Promise<void> {

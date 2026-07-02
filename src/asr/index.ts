@@ -29,6 +29,7 @@ export {
 export {
   createWebSocketTransportClient,
   WebSocketTransport,
+  LOCAL_ASR_RECONNECT_BUDGET,
   type IncomingTranscriptMessage,
   type RawTranscriptTransportMessage,
   type WebSocketTransportClient,
