@@ -38,6 +38,18 @@ After those gates are stable, workers can proceed in parallel on implementation 
 - Prefer additive edits over rewrites when another worker may already be operating.
 - If a task introduces a new contract, update the corresponding architecture or engineering doc in the same pass.
 
+## Release/QA Queue Split
+
+When the coordinator reaches the release-and-QA slice, use the queue index in `docs/05-backlog.md` and launch Queue 5 as a 5-worker batch.
+
+- Worker 1: packaging and versioning
+- Worker 2: security and local-only enforcement
+- Worker 3: performance and reconnect stability
+- Worker 4: QA smoke, regression, and post-release verification
+- Worker 5: accessibility and supportability
+
+Queue 5 should be assigned with one branch and one PR per worker. Keep the queue numbering aligned with `docs/07-agent-prompts.md` so the backlog, runbook, and prompt pack all name the same batch.
+
 ## Task Packet Format
 
 Assign work to agents using this structure:

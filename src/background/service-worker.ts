@@ -73,6 +73,15 @@ type ContentBridgeRequest =
   | { type: "ktalk.content.markUnavailable"; reason?: string }
   | { type: "ktalk.content.reset"; reason?: string };
 
+type ContentSnapshotMessage = {
+  type: "ktalk.content.snapshot";
+  snapshot: ContentScriptSnapshot;
+};
+
+type UiBridgeRequest = {
+  type: "ktalk.ui.openSidebar";
+};
+
 interface ContentSessionSnapshot {
   sessionId: string | null;
   meetingId: string | null;
@@ -119,6 +128,9 @@ interface ChromeTabsAPI {
     },
     callback: (tabs: Array<{ id?: number; windowId?: number; url?: string }>) => void,
   ): void;
+  onRemoved: {
+    addListener(callback: (tabId: number, removeInfo: { windowId: number; isWindowClosing: boolean }) => void): void;
+  };
   create(
     createProperties: {
       active?: boolean;
@@ -279,6 +291,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function getSenderTabId(sender: unknown): number | null {
+  if (!isRecord(sender) || !isRecord(sender.tab)) {
+    return null;
+  }
+
+  return typeof sender.tab.id === "number" ? sender.tab.id : null;
+}
+
 function normalizeUiRoutingState(value: unknown): UiRoutingState {
   if (!isRecord(value)) {
     return {
@@ -295,6 +315,14 @@ function isContentBridgeMessage(message: unknown): message is ContentBridgeReque
   return isRecord(message) && typeof message.type === "string" && message.type.startsWith("ktalk.content.");
 }
 
+function isContentSnapshotMessage(message: unknown): message is ContentSnapshotMessage {
+  return (
+    isRecord(message) &&
+    message.type === "ktalk.content.snapshot" &&
+    isContentScriptSnapshot(message.snapshot)
+  );
+}
+
 function isUiBroadcastMessage(message: unknown): message is UiBroadcastMessage {
   return isRecord(message) && message.type === "ktalk.ui.refresh";
 }
@@ -308,7 +336,7 @@ function getActiveTabId(): Promise<number | null> {
 }
 
 async function sendContentBridgeMessage<T>(message: ContentBridgeRequest): Promise<T | null> {
-  const tabId = await getActiveTabId();
+  const tabId = sessionState.tabId ?? (await getActiveTabId());
   if (tabId === null) {
     return null;
   }
@@ -886,6 +914,16 @@ async function handleCommand(command: string): Promise<void> {
   }
 }
 
+async function handleUiBridgeRequest(message: UiBridgeRequest): Promise<void> {
+  switch (message.type) {
+    case "ktalk.ui.openSidebar":
+      await openSidebarSurface();
+      break;
+    default:
+      break;
+  }
+}
+
 function isCaptionsActivePhase(phase: SessionState["phase"]): boolean {
   return phase === "checking-agent" || phase === "connecting" || phase === "listening" || phase === "reconnecting";
 }
@@ -976,6 +1014,7 @@ export async function startSession(seed: SessionSeed = {}): Promise<SessionSnaps
   await bootstrapServiceWorker();
 
   const timestamp = typeof seed.startedAt === "number" ? seed.startedAt : now();
+  const activeTabId = typeof seed.tabId === "number" ? seed.tabId : await getActiveTabId();
   const sessionId = typeof seed.sessionId === "string" && seed.sessionId.length > 0
     ? seed.sessionId
     : createId();
@@ -988,7 +1027,7 @@ export async function startSession(seed: SessionSeed = {}): Promise<SessionSnaps
       ...createIdleSessionState(),
       sessionId,
       meetingId,
-      tabId: typeof seed.tabId === "number" ? seed.tabId : null,
+      tabId: activeTabId,
       source: isCaptureSource(seed.source) ? seed.source : null,
       phase: "checking-agent",
       transport: "connecting",
@@ -1242,8 +1281,32 @@ chrome.commands.onCommand.addListener((command) => {
   void handleCommand(command);
 });
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.tabs.onRemoved.addListener((tabId) => {
+  if (sessionState.tabId !== tabId || !isCaptionsActivePhase(sessionState.phase)) {
+    return;
+  }
+
+  void endSession({
+    type: "session.end",
+    reason: "meeting-tab-closed",
+  });
+});
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (isUiBroadcastMessage(message)) {
+    return false;
+  }
+
+  if (isContentSnapshotMessage(message)) {
+    const nextState = mapContentScriptSnapshotToSessionState(message.snapshot);
+    transitionSessionState({
+      ...nextState,
+      tabId: getSenderTabId(sender) ?? sessionState.tabId,
+      updatedAt: now(),
+    });
+    void persistState();
+    notifyUiRefresh();
+    sendResponse(makeSnapshot());
     return false;
   }
 
@@ -1251,6 +1314,28 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     void sendContentBridgeMessage(message).then((response) => {
       sendResponse(response);
     });
+    return true;
+  }
+
+  if (isRecord(message) && typeof message.type === "string" && message.type.startsWith("ktalk.ui.")) {
+    void handleUiBridgeRequest(message as UiBridgeRequest)
+      .then(() => {
+        sendResponse({
+          ok: true,
+          requestId: null,
+          type: "protocol.pong",
+          protocolVersion: PROTOCOL_VERSION,
+        } satisfies RuntimeResponse);
+      })
+      .catch((error: unknown) => {
+        const messageText = error instanceof Error ? error.message : "Unknown worker failure";
+        sendResponse({
+          ok: false,
+          requestId: null,
+          type: "error",
+          error: createProtocolError("unknown", messageText, true),
+        } satisfies RuntimeResponse);
+      });
     return true;
   }
 

@@ -47,6 +47,9 @@ export interface LocalAsrTransportOptions {
   targetSampleRate?: number;
   chunkDurationMs?: number;
   stopSourceTracksOnStop?: boolean;
+  reconnectMaxAttempts?: number;
+  reconnectBaseDelayMs?: number;
+  reconnectMaxDelayMs?: number;
   onTranscript?: (message: IncomingTranscriptMessage) => void;
   onError?: (error: Error) => void;
 }
@@ -94,6 +97,9 @@ class ComposedLocalAsrTransport implements LocalAsrTransport {
 
     const websocket = createWebSocketTransportClient({
       url: this.options.url,
+      reconnectMaxAttempts: this.options.reconnectMaxAttempts,
+      reconnectBaseDelayMs: this.options.reconnectBaseDelayMs,
+      reconnectMaxDelayMs: this.options.reconnectMaxDelayMs,
       onTranscript: this.options.onTranscript,
       onError: (error) => {
         this.options.onError?.(error instanceof Error ? error : new Error("ASR websocket error."));
@@ -178,9 +184,11 @@ class ComposedLocalAsrTransport implements LocalAsrTransport {
         reason,
       };
 
-      await websocket.sendSessionEnd(endMessage).catch((error: unknown) => {
-        this.options.onError?.(error instanceof Error ? error : new Error("Session end send failed."));
-      });
+      if (websocket.isConnected) {
+        await websocket.sendSessionEnd(endMessage).catch((error: unknown) => {
+          this.options.onError?.(error instanceof Error ? error : new Error("Session end send failed."));
+        });
+      }
       await websocket.close().catch((error: unknown) => {
         this.options.onError?.(error instanceof Error ? error : new Error("WebSocket close failed."));
       });

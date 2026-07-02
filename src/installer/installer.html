@@ -13,8 +13,8 @@
         <h1 id="installer-title">Discover the local ASR service</h1>
         <p class="hero__lead" id="installer-lead">
           Speech stays on this machine. This page checks whether WhisperLiveKit
-          is reachable at <span class="inline-code">localhost:8000/asr</span>
-          and keeps the setup flow local-only.
+          is reachable at <span class="inline-code">localhost:8000/asr</span>,
+          keeps the setup flow local-only, and points to the next recovery step.
         </p>
 
         <div class="hero__actions">
@@ -97,9 +97,9 @@
           </p>
 
           <ul class="checklist" aria-label="Installer guidance">
-            <li>Start WhisperLiveKit on port 8000.</li>
-            <li>Confirm nothing else is using localhost:8000.</li>
-            <li>Run discovery again until the service is reachable.</li>
+            <li>Start WhisperLiveKit on localhost:8000.</li>
+            <li>Confirm the local ASR endpoint answers at /asr.</li>
+            <li>Run discovery again until the service is ready.</li>
           </ul>
         </article>
       </section>
