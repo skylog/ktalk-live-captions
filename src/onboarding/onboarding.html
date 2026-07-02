@@ -10,19 +10,22 @@
     <main class="onboarding-shell" aria-label="First-run onboarding">
       <section class="hero">
         <div class="hero__eyebrow">Local first</div>
-        <h1>Set up live captions on this machine</h1>
-        <p class="hero__lead">
-          Speech stays on your device. This flow checks the local ASR service,
-          explains the browser permissions the extension needs, and gives you a
-          recovery path if anything is missing.
-        </p>
+        <div class="hero__copy">
+          <h1>Check readiness before you start captions</h1>
+          <p class="hero__lead">
+            This setup screen checks three things locally: whether the ASR
+            service is reachable on <strong>localhost:8000</strong>, whether
+            the browser exposes the capture APIs the extension needs, and
+            whether the required permissions are already granted.
+          </p>
+        </div>
 
         <div class="hero__actions">
           <button class="primary-action" id="recheck-service" type="button">
-            Check local service
+            Check local readiness
           </button>
           <span class="hero__status" id="overall-status">
-            Waiting for checks.
+            Waiting for the first check.
           </span>
         </div>
       </section>
@@ -32,15 +35,15 @@
           <header class="status-card__header">
             <div>
               <div class="status-card__label">Local ASR service</div>
-              <h2>Detect localhost:8000/asr</h2>
+              <h2>Reach localhost:8000/asr</h2>
             </div>
             <span class="status-pill" data-status="checking" id="service-status">
               Checking
             </span>
           </header>
           <p class="status-card__body" id="service-detail">
-            The extension probes the local endpoint before the first session
-            starts.
+            The extension probes the local endpoint before the first caption
+            session starts.
           </p>
           <dl class="status-meta">
             <div>
@@ -57,16 +60,36 @@
         <article class="status-card">
           <header class="status-card__header">
             <div>
+              <div class="status-card__label">Browser support</div>
+              <h2>Confirm extension APIs</h2>
+            </div>
+            <span class="status-pill" data-status="checking" id="support-status">
+              Checking
+            </span>
+          </header>
+          <p class="status-card__body" id="support-detail">
+            Browser capability checks will appear here.
+          </p>
+          <ul class="status-list" id="support-list">
+            <li>Chrome extension runtime and messaging</li>
+            <li>Permission prompts for capture and localhost access</li>
+            <li>Secure local context for the first-run page</li>
+          </ul>
+        </article>
+
+        <article class="status-card">
+          <header class="status-card__header">
+            <div>
               <div class="status-card__label">Browser permissions</div>
-              <h2>Confirm extension access</h2>
+              <h2>Capture access</h2>
             </div>
             <span class="status-pill" data-status="ready" id="permission-status">
               Ready
             </span>
           </header>
           <p class="status-card__body" id="permission-detail">
-            The extension uses local browser permissions only. Nothing is sent to
-            a cloud transcription service.
+            The extension uses local browser permissions only. Nothing is sent
+            to a cloud transcription service.
           </p>
           <ul class="permission-list" id="permission-list">
             <li>activeTab for the current meeting tab</li>
@@ -80,26 +103,31 @@
 
       <section class="guide-grid" aria-label="Recovery guidance">
         <article class="guide-card">
-          <h2>How detection works</h2>
+          <h2>What to do if the service is missing</h2>
+          <ol>
+            <li>Start the local WhisperLiveKit service on port 8000.</li>
+            <li>Confirm nothing else is already using <code>localhost:8000</code>.</li>
+            <li>Click <strong>Check local readiness</strong> again after the service starts.</li>
+            <li>If the check still fails, restart the local service and retry.</li>
+          </ol>
           <p>
-            Onboarding checks the local HTTP endpoint first. If the endpoint
-            responds, the extension can connect to the matching WebSocket
-            service at the same host and port.
-          </p>
-          <p>
-            When the service is unavailable, the UI should stay on the local
-            setup path and avoid starting captions until the check passes.
+            When the service is healthy, the extension can reach the matching
+            WebSocket endpoint at the same host and port.
           </p>
         </article>
 
         <article class="guide-card">
-          <h2>Recovery steps</h2>
+          <h2>What to do if the browser is unsupported</h2>
           <ol>
-            <li>Start the local WhisperLiveKit service on port 8000.</li>
-            <li>Confirm nothing else is already using localhost:8000.</li>
-            <li>Reload the extension after the local service is healthy.</li>
-            <li>Run this check again before starting the first caption session.</li>
+            <li>Use a Chromium-based browser with extension API support.</li>
+            <li>Make sure the page is opened from the extension, not a regular tab.</li>
+            <li>Reload the extension after changing browsers or updating Chrome.</li>
+            <li>Then run the readiness check again.</li>
           </ol>
+          <p>
+            If browser APIs are unavailable, the extension cannot request
+            capture permissions or coordinate local session state.
+          </p>
         </article>
       </section>
 
@@ -107,8 +135,8 @@
         <div>
           <div class="footer-card__label">Next step</div>
           <p>
-            After the service check passes, open the extension popup and start a
-            caption session from a supported Kontur Talk meeting tab.
+            After the service check passes, open the popup and start captions
+            from a supported Kontur Talk meeting tab.
           </p>
         </div>
         <div class="footer-card__note" id="manifest-note"></div>
