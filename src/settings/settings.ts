@@ -132,6 +132,7 @@ function setStatus(elements: SettingsElements, state: SaveState, note: string): 
   elements.statusPill.textContent =
     state === "loading" ? "Loading" : state === "saving" ? "Saving" : state === "error" ? "Needs attention" : "Saved locally";
   elements.statusNote.textContent = note;
+  elements.statusNote.dataset.state = state;
 }
 
 function setRadioValue(name: string, value: string): void {
@@ -168,7 +169,6 @@ function renderForm(elements: SettingsElements, settings: AppSettings): void {
 
   elements.previewSurface.dataset.overlayPosition = settings.overlayPosition;
   elements.previewSurface.dataset.captionDensity = settings.captionDensity;
-
 }
 
 function readForm(elements: SettingsElements): AppSettings {
@@ -203,7 +203,7 @@ async function persist(elements: SettingsElements): Promise<void> {
   const token = ++saveToken;
   const nextSettings = readForm(elements);
 
-  setStatus(elements, "saving", "Writing preferences to local storage.");
+  setStatus(elements, "saving", "Saving changes to local storage.");
 
   try {
     const saved = await setSettings(nextSettings);
@@ -212,7 +212,7 @@ async function persist(elements: SettingsElements): Promise<void> {
     }
 
     renderForm(elements, saved);
-    setStatus(elements, "saved", "Preferences are stored in this browser profile.");
+    setStatus(elements, "saved", "Preferences are saved locally in this browser profile.");
   } catch (error) {
     if (token !== saveToken) {
       return;
@@ -228,7 +228,7 @@ async function persist(elements: SettingsElements): Promise<void> {
 
 async function restoreDefaults(elements: SettingsElements): Promise<void> {
   const token = ++saveToken;
-  setStatus(elements, "saving", "Restoring the default preferences.");
+  setStatus(elements, "saving", "Restoring the product defaults.");
 
   try {
     const saved = await resetSettings();
@@ -237,7 +237,7 @@ async function restoreDefaults(elements: SettingsElements): Promise<void> {
     }
 
     renderForm(elements, saved);
-    setStatus(elements, "saved", "Default preferences restored locally.");
+    setStatus(elements, "saved", "Default preferences restored and saved locally.");
   } catch (error) {
     if (token !== saveToken) {
       return;
@@ -261,12 +261,17 @@ async function loadInitialState(elements: SettingsElements): Promise<void> {
   try {
     const settings = await getSettings();
     syncSummary(elements, settings);
+    setStatus(elements, "saved", "Saved preferences are ready and stored locally.");
   } catch {
     syncSummary(elements, defaultSettings);
+    setStatus(
+      elements,
+      "error",
+      "Saved preferences could not be loaded, so the default values are shown for now.",
+    );
   }
 
   hydrated = true;
-  setStatus(elements, "saved", "Preferences are ready and stored locally.");
 }
 
 export function initSettingsPage(): void {
