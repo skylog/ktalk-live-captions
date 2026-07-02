@@ -362,6 +362,66 @@ function sortByRecency(records: SessionHistoryRecord[]): SessionHistoryRecord[] 
   });
 }
 
+function normalizeSearchQuery(query: string): string {
+  return normalizeText(query).toLowerCase();
+}
+
+function buildSearchCorpus(record: SessionHistoryRecord): string[] {
+  const transcriptText = record.transcript.map((segment) => normalizeText(segment.text)).filter(Boolean);
+  const preview = normalizeText(record.preview);
+  const partial = normalizeText(record.currentPartialText);
+  const final = normalizeText(record.lastFinalText);
+
+  return [
+    record.sessionId,
+    record.meetingId,
+    preview,
+    partial,
+    final,
+    ...transcriptText,
+  ]
+    .map((entry) => normalizeText(entry).toLowerCase())
+    .filter((entry) => entry.length > 0);
+}
+
+function scoreHistoryRecord(record: SessionHistoryRecord, query: string): number {
+  const corpus = buildSearchCorpus(record);
+  let score = 0;
+
+  for (const entry of corpus) {
+    const matchIndex = entry.indexOf(query);
+    if (matchIndex === -1) {
+      continue;
+    }
+
+    score += 100;
+    score += Math.max(0, 40 - Math.min(matchIndex, 40));
+    if (entry === query) {
+      score += 50;
+    }
+  }
+
+  return score;
+}
+
+function sortSearchResults(
+  left: { record: SessionHistoryRecord; score: number },
+  right: { record: SessionHistoryRecord; score: number },
+): number {
+  if (left.score !== right.score) {
+    return right.score - left.score;
+  }
+
+  const leftStamp = left.record.updatedAt ?? left.record.endedAt ?? left.record.startedAt ?? 0;
+  const rightStamp = right.record.updatedAt ?? right.record.endedAt ?? right.record.startedAt ?? 0;
+
+  if (leftStamp !== rightStamp) {
+    return rightStamp - leftStamp;
+  }
+
+  return left.record.sessionId.localeCompare(right.record.sessionId);
+}
+
 function makePreview(snapshot: SessionSnapshot): string {
   const session = snapshot.session;
   if (session.lastFinalText.trim().length > 0) {
@@ -629,6 +689,28 @@ export class SessionHistoryStore {
     return sortByRecency(state.sessions).slice(0, limit).map(cloneHistoryRecord);
   }
 
+  async search(query: string, options: SessionHistoryLookupOptions = {}): Promise<SessionHistoryRecord[]> {
+    const state = this.pruneState(await this.readState());
+    const normalizedQuery = normalizeSearchQuery(query);
+
+    if (normalizedQuery.length === 0) {
+      return this.listRecent(options);
+    }
+
+    const limit = typeof options.limit === "number" && options.limit > 0 ? options.limit : 12;
+    const matches = sortByRecency(state.sessions)
+      .map((record) => ({
+        record,
+        score: scoreHistoryRecord(record, normalizedQuery),
+      }))
+      .filter((entry) => entry.score > 0)
+      .sort(sortSearchResults)
+      .slice(0, limit)
+      .map((entry) => cloneHistoryRecord(entry.record));
+
+    return matches;
+  }
+
   async removeBySessionId(sessionId: string): Promise<boolean> {
     const state = await this.readState();
     const nextSessions = state.sessions.filter((entry) => entry.sessionId !== sessionId);
@@ -667,6 +749,11 @@ export const getSessionHistoryByMeetingId = (
 export const listRecentSessionHistory = (
   options?: SessionHistoryLookupOptions,
 ): Promise<SessionHistoryRecord[]> => sessionHistoryStore.listRecent(options);
+
+export const searchSessionHistory = (
+  query: string,
+  options?: SessionHistoryLookupOptions,
+): Promise<SessionHistoryRecord[]> => sessionHistoryStore.search(query, options);
 
 export const removeSessionHistoryBySessionId = (sessionId: string): Promise<boolean> =>
   sessionHistoryStore.removeBySessionId(sessionId);

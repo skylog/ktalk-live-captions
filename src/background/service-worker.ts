@@ -9,6 +9,7 @@ import {
   type ProtocolError,
   type RuntimeRequest,
   type RuntimeResponse,
+  type SessionHistorySearchResponse,
   type SessionEndRequest,
   type SessionPatch,
   type SessionSeed,
@@ -22,6 +23,13 @@ import {
   createProtocolError,
   LOCAL_ASR_HTTP_URL,
 } from "../shared/protocol";
+import {
+  upsertSessionHistorySnapshot,
+  searchSessionHistory,
+} from "../storage/session-history";
+import {
+  upsertTranscriptSnapshot,
+} from "../storage/transcript-store";
 
 interface ChromeRuntimeAPI {
   lastError?: { message?: string };
@@ -873,7 +881,10 @@ function isCaptionsActivePhase(phase: SessionState["phase"]): boolean {
 }
 
 async function persistState(): Promise<void> {
-  await setStorageBlob(makeSnapshot());
+  const snapshot = makeSnapshot();
+  await setStorageBlob(snapshot);
+  await upsertTranscriptSnapshot(snapshot);
+  await upsertSessionHistorySnapshot(snapshot);
 }
 
 function applySessionState(nextState: SessionState, nextSegments = transcriptSegments): SessionSnapshot {
@@ -1193,6 +1204,18 @@ export async function handleRuntimeMessage(
         requestId,
         type: "service.health",
         health,
+      };
+    }
+    case "session.history.search": {
+      const query = typeof message.query === "string" ? message.query : "";
+      const limit = typeof message.limit === "number" && message.limit > 0 ? message.limit : undefined;
+      const results = await searchSessionHistory(query, { limit });
+      return {
+        ok: true,
+        requestId,
+        type: "session.history.results",
+        query,
+        results: results as SessionHistorySearchResponse["results"],
       };
     }
     default:

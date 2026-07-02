@@ -200,6 +200,36 @@ export interface SessionSnapshot {
   transcript: ReadonlyArray<TranscriptSegment>;
 }
 
+export interface SessionArchiveExportMetadata {
+  generatedAt: number;
+  sessionId: string;
+  meetingId: string;
+  source: CaptureSource | null;
+  startedAt: number | null;
+  endedAt: number | null;
+  durationMs: number | null;
+  segmentCount: number;
+  transcriptUpdatedAt: number | null;
+}
+
+export interface SessionArchiveRecord {
+  sessionId: string;
+  meetingId: string;
+  startedAt: number | null;
+  updatedAt: number | null;
+  endedAt: number | null;
+  phase: SessionPhase;
+  transport: SessionTransportState;
+  source: CaptureSource | null;
+  segmentCount: number;
+  transcriptUpdatedAt: number | null;
+  currentPartialText: string;
+  lastFinalText: string;
+  preview: string;
+  transcript: ReadonlyArray<TranscriptSegment>;
+  exportMetadata: SessionArchiveExportMetadata;
+}
+
 export interface RuntimeErrorResponse {
   ok: false;
   requestId: string | null;
@@ -228,11 +258,27 @@ export interface RuntimeHealthResponse {
   health: ServiceHealth;
 }
 
+export interface SessionHistorySearchRequest {
+  type: "session.history.search";
+  requestId?: string | null;
+  query?: string;
+  limit?: number;
+}
+
+export interface SessionHistorySearchResponse {
+  ok: true;
+  requestId: string | null;
+  type: "session.history.results";
+  query: string;
+  results: ReadonlyArray<SessionArchiveRecord>;
+}
+
 export type RuntimeResponse =
   | RuntimeErrorResponse
   | RuntimePongResponse
   | RuntimeSessionSnapshotResponse
-  | RuntimeHealthResponse;
+  | RuntimeHealthResponse
+  | SessionHistorySearchResponse;
 
 export interface ProtocolPingRequest {
   type: "protocol.ping";
@@ -286,7 +332,8 @@ export type RuntimeRequest =
   | SessionEndRequest
   | SessionResetRequest
   | TranscriptAppendRequest
-  | ServiceHealthRequest;
+  | ServiceHealthRequest
+  | SessionHistorySearchRequest;
 
 export interface SessionStartTransportMessage {
   type: "session.start";
