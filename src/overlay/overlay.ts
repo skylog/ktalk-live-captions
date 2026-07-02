@@ -1,4 +1,4 @@
-import type { RuntimeResponse, SessionSnapshot, TranscriptSegment } from "../shared/protocol";
+import type { RuntimeRequest, RuntimeResponse, SessionSnapshot, TranscriptSegment } from "../shared/protocol";
 
 type OverlayState = "idle" | "listening" | "reconnecting" | "missing";
 
@@ -231,9 +231,45 @@ function sendRuntimeMessage<T>(message: Record<string, unknown>): Promise<T | nu
   });
 }
 
+function createRequestId(): string {
+  return `overlay-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+async function requestSessionSnapshot(): Promise<SessionSnapshot | null> {
+  const response = await sendRuntimeMessage<RuntimeResponse>({
+    type: "session.get",
+    requestId: createRequestId(),
+  } satisfies RuntimeRequest);
+
+  return response?.type === "session.snapshot" ? response.snapshot : null;
+}
+
+async function toggleCaptions(currentState: OverlayState): Promise<void> {
+  if (currentState === "listening" || currentState === "reconnecting") {
+    await sendRuntimeMessage<RuntimeResponse>({
+      type: "session.end",
+      requestId: createRequestId(),
+      reason: "overlay-stop-requested",
+    } satisfies RuntimeRequest);
+    await refresh();
+    return;
+  }
+
+  await sendRuntimeMessage<RuntimeResponse>({
+    type: "session.start",
+    requestId: createRequestId(),
+  } satisfies RuntimeRequest);
+  await refresh();
+}
+
+async function openTranscriptSurface(): Promise<void> {
+  await sendRuntimeMessage<RuntimeResponse>({
+    type: "ktalk.ui.openSidebar",
+  });
+}
+
 async function refresh(): Promise<void> {
-  const response = await sendRuntimeMessage<RuntimeResponse>({ type: "session.get" });
-  state.session = response?.type === "session.snapshot" ? response.snapshot : null;
+  state.session = await requestSessionSnapshot();
   render(state.session);
 }
 
@@ -254,22 +290,11 @@ function setupInteractions(): void {
     switch (action) {
       case "toggle-pause": {
         const currentState = shell.dataset.overlayState as OverlayState | undefined;
-        const overlayAction = currentState === "listening" || currentState === "reconnecting" ? "pause" : "start";
-        shell.dispatchEvent(
-          new CustomEvent("ktalk:overlay-action", {
-            bubbles: true,
-            detail: { action: overlayAction },
-          }),
-        );
+        void toggleCaptions(currentState ?? "idle");
         break;
       }
       case "open-transcript":
-        shell.dispatchEvent(
-          new CustomEvent("ktalk:overlay-action", {
-            bubbles: true,
-            detail: { action: "open-transcript" },
-          }),
-        );
+        void openTranscriptSurface();
         break;
       default:
         break;

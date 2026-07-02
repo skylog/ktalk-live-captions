@@ -54,6 +54,7 @@ type ChromeLike = {
       addListener(listener: (message: unknown, sender: unknown, sendResponse: (response: unknown) => void) => void): void;
       removeListener(listener: (message: unknown, sender: unknown, sendResponse: (response: unknown) => void) => void): void;
     };
+    sendMessage?(message: unknown, callback?: (response: unknown) => void): void;
   };
 };
 
@@ -67,6 +68,22 @@ function cloneDetection(detection: MeetingDetectionSnapshot): MeetingDetectionSn
     reasons: [...detection.reasons],
     signals: [...detection.signals],
   };
+}
+
+function notifyBackgroundSnapshot(snapshot: ContentScriptSnapshot): void {
+  const runtime = (globalThis as typeof globalThis & { chrome?: ChromeLike }).chrome?.runtime;
+  if (!runtime?.sendMessage) {
+    return;
+  }
+
+  try {
+    runtime.sendMessage({
+      type: 'ktalk.content.snapshot',
+      snapshot,
+    });
+  } catch {
+    // Background messaging is best-effort in the content context.
+  }
 }
 
 export function createContentScriptController(options: ContentScriptOptions = {}): ContentScriptController {
@@ -92,6 +109,7 @@ export function createContentScriptController(options: ContentScriptOptions = {}
 
   function emit(): void {
     const snapshot = currentSnapshot();
+    notifyBackgroundSnapshot(snapshot);
     for (const listener of listeners) {
       listener(snapshot);
     }

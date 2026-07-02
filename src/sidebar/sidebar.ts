@@ -271,6 +271,21 @@ function renderSessionSummary(statusPill: HTMLElement | null, sessionRange: HTML
   }
 }
 
+function focusLatestTranscript(shell: HTMLElement): void {
+  const stream = shell.querySelector<HTMLElement>("[data-transcript-stream]");
+  const latestCard = stream?.querySelector<HTMLElement>(".segment-card:last-child");
+
+  if (!latestCard) {
+    return;
+  }
+
+  latestCard.scrollIntoView({ block: "nearest" });
+  latestCard.classList.add("segment-card--focused");
+  window.setTimeout(() => {
+    latestCard.classList.remove("segment-card--focused");
+  }, 1200);
+}
+
 function render(shell: HTMLElement): void {
   const stream = shell.querySelector<HTMLElement>("[data-transcript-stream]");
   const historyList = shell.querySelector<HTMLElement>("[data-history-list]");
@@ -369,6 +384,7 @@ function setupInteractions(shell: HTMLElement): void {
         dispatchExport(shell, "markdown", buildMarkdownExport(state.session));
         break;
       case "focus-latest":
+        focusLatestTranscript(shell);
         dispatchSimple(shell, "focus-latest");
         break;
       default:
