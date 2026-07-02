@@ -383,6 +383,23 @@ Rules:
 
 ## EPIC B8 - Release and QA
 
+### Release/QA Queue 5 Index
+
+Use this queue when the release docs are stable and the coordinator wants a clean 5-worker batch for the remaining release/QA slice.
+
+- Queue 5A: Packaging and versioning (`B8-03`, `B8-07`, `B8-10`)
+- Queue 5B: Security and local-only enforcement (`B8-01`, `B8-09`)
+- Queue 5C: Performance and reconnect stability (`B8-02`, `B8-04`, `B8-14`)
+- Queue 5D: QA smoke, regression, and post-release verification (`B8-05`, `B8-08`, `B8-11`, `B8-15`)
+- Queue 5E: Accessibility and supportability (`B8-06`, `B8-12`, `B8-13`)
+
+Rules:
+
+- Launch the five queue tracks together as one batch.
+- Keep one worker on one queue track at a time.
+- Do not split a task across queue tracks.
+- If a task needs to move tracks, update this index before assignment.
+
 ### B8-01 - Smoke tests
 - Task: Verify popup, overlay, and sidebar launch paths.
 - Task: Verify startup against a local ASR service.

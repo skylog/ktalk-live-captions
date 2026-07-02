@@ -56,6 +56,12 @@ export class PcmEncoder {
 
   private readonly chunkSize: number;
 
+  private readonly resampleRatio: number;
+
+  private sourceSamples: Float32Array = new Float32Array(0);
+
+  private sourcePosition = 0;
+
   private pendingSamples: Float32Array = new Float32Array(0);
 
   private chunkIndex = 0;
@@ -65,9 +71,14 @@ export class PcmEncoder {
       throw new Error("inputSampleRate must be a positive number.");
     }
 
+    if (options.targetSampleRate !== undefined && (!Number.isFinite(options.targetSampleRate) || options.targetSampleRate <= 0)) {
+      throw new Error("targetSampleRate must be a positive number.");
+    }
+
     this.inputSampleRate = options.inputSampleRate;
     this.targetSampleRate = options.targetSampleRate ?? 16000;
     this.channels = options.channels ?? 1;
+    this.resampleRatio = this.inputSampleRate / this.targetSampleRate;
 
     const chunkDurationMs = options.chunkDurationMs ?? 100;
     this.chunkSize = Math.max(1, Math.round((this.targetSampleRate * chunkDurationMs) / 1000));
@@ -82,12 +93,16 @@ export class PcmEncoder {
   }
 
   reset(): void {
+    this.sourceSamples = new Float32Array(0);
+    this.sourcePosition = 0;
     this.pendingSamples = new Float32Array(0);
     this.chunkIndex = 0;
   }
 
   push(samples: Float32Array, timestamp = Date.now()): PcmChunk[] {
-    this.pendingSamples = this.appendSamples(this.pendingSamples, samples);
+    this.sourceSamples = this.appendSamples(this.sourceSamples, samples);
+    this.pendingSamples = this.appendSamples(this.pendingSamples, this.resamplePendingSamples(false));
+
     const chunks: PcmChunk[] = [];
     while (this.pendingSamples.length >= this.chunkSize) {
       const chunkSamples = this.pendingSamples.slice(0, this.chunkSize);
@@ -100,6 +115,8 @@ export class PcmEncoder {
 
   flush(timestamp = Date.now()): PcmChunk[] {
     const chunks: PcmChunk[] = [];
+    this.pendingSamples = this.appendSamples(this.pendingSamples, this.resamplePendingSamples(true));
+
     if (this.pendingSamples.length > 0) {
       const padded = new Float32Array(this.chunkSize);
       padded.set(this.pendingSamples.slice(0, this.chunkSize), 0);
@@ -123,6 +140,47 @@ export class PcmEncoder {
     merged.set(left, 0);
     merged.set(right, left.length);
     return merged;
+  }
+
+  private resamplePendingSamples(includeTailPadding: boolean): Float32Array {
+    if (this.sourceSamples.length === 0) {
+      return new Float32Array(0);
+    }
+
+    const source = includeTailPadding ? this.appendTailSample(this.sourceSamples) : this.sourceSamples;
+    const output: number[] = [];
+
+    while (this.sourcePosition + 1 < source.length) {
+      const leftIndex = Math.floor(this.sourcePosition);
+      const rightIndex = leftIndex + 1;
+      const fraction = this.sourcePosition - leftIndex;
+      const left = source[leftIndex] ?? 0;
+      const right = source[rightIndex] ?? left;
+      output.push(left + (right - left) * fraction);
+      this.sourcePosition += this.resampleRatio;
+    }
+
+    const consumed = Math.floor(this.sourcePosition);
+    if (consumed > 0) {
+      this.sourceSamples = source.slice(consumed);
+      this.sourcePosition -= consumed;
+    } else if (includeTailPadding) {
+      this.sourceSamples = new Float32Array(0);
+      this.sourcePosition = 0;
+    }
+
+    return new Float32Array(output);
+  }
+
+  private appendTailSample(samples: Float32Array): Float32Array {
+    if (samples.length === 0) {
+      return samples;
+    }
+
+    const padded = new Float32Array(samples.length + 1);
+    padded.set(samples, 0);
+    padded[padded.length - 1] = samples[samples.length - 1] ?? 0;
+    return padded;
   }
 
   private createChunk(samples: Float32Array, timestamp: number): PcmChunk {

@@ -290,13 +290,13 @@ PR title:
 - Merge only after coordinator review.
 ```
 
-## Queue 3 - Release Hardening Pack
+## Queue 5 - Release/QA Closeout Pack
 
 Use this queue after the product, architecture, UI, engineering, and backlog docs are stable.
-The coordinator must split release hardening into 5 non-overlapping work packets and return all
+The coordinator must split release/QA closeout into 5 non-overlapping work packets and return all
 5 packets in one answer.
 
-### Shared Instructions For Queue 3
+### Shared Instructions For Queue 5
 
 ```text
 Repo: ktalk-live-captions
@@ -317,13 +317,13 @@ Rules:
 - Do not add telemetry unless the docs explicitly require it.
 ```
 
-### 1. Queue 3 Coordinator Prompt
+### 1. Queue 5 Coordinator Prompt
 
 ```text
-You are the coordinator for Queue 3 of Kontur Talk Live Captions.
+You are the coordinator for Queue 5 of Kontur Talk Live Captions.
 
 Mission:
-- Split release hardening across 5 workers.
+- Split release/QA closeout across 5 workers.
 - Keep branch ownership, dependency order, and PR sequencing under control.
 - Return 5 complete task packets in one response.
 
@@ -333,7 +333,7 @@ Operating rules:
 - Do not allow overlap between workers.
 - Require one branch and one PR per worker.
 
-Preferred Queue 3 workstreams:
+Preferred Queue 5 workstreams:
 - Release packaging and versioning
 - Security and local-only enforcement
 - Performance and reconnect stability
@@ -362,13 +362,13 @@ Each task packet must include:
 - PR title
 ```
 
-### 2. Queue 3 Worker Prompt - Release Packaging
+### 2. Queue 5 Worker Prompt - Release Packaging
 
 ```text
 You are Worker 1, the Release Packaging agent for Kontur Talk Live Captions.
 
 Branch:
-- release/queue3-packaging
+- release/queue5-packaging
 
 Primary files:
 - package.json
@@ -390,13 +390,13 @@ Validation:
 - Manifest and package versions are aligned.
 ```
 
-### 3. Queue 3 Worker Prompt - Security
+### 3. Queue 5 Worker Prompt - Security
 
 ```text
 You are Worker 2, the Security agent for Kontur Talk Live Captions.
 
 Branch:
-- release/queue3-security
+- release/queue5-security
 
 Primary files:
 - src/background/service-worker.ts
@@ -419,13 +419,13 @@ Validation:
 - Required permissions are minimal and documented.
 ```
 
-### 4. Queue 3 Worker Prompt - Performance
+### 4. Queue 5 Worker Prompt - Performance
 
 ```text
 You are Worker 3, the Performance agent for Kontur Talk Live Captions.
 
 Branch:
-- release/queue3-performance
+- release/queue5-performance
 
 Primary files:
 - src/asr/websocket-client.ts
@@ -447,13 +447,13 @@ Validation:
 - Transcript flow remains deterministic under stress.
 ```
 
-### 5. Queue 3 Worker Prompt - QA
+### 5. Queue 5 Worker Prompt - QA
 
 ```text
 You are Worker 4, the QA agent for Kontur Talk Live Captions.
 
 Branch:
-- release/queue3-qa
+- release/queue5-qa
 
 Primary files:
 - docs/05-backlog.md
@@ -474,13 +474,13 @@ Validation:
 - Release verification steps are unambiguous.
 ```
 
-### 6. Queue 3 Worker Prompt - Accessibility and Support
+### 6. Queue 5 Worker Prompt - Accessibility and Support
 
 ```text
 You are Worker 5, the Accessibility and Support agent for Kontur Talk Live Captions.
 
 Branch:
-- release/queue3-a11y-support
+- release/queue5-a11y-support
 
 Primary files:
 - src/popup/popup.ts

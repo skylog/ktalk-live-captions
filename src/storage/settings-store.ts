@@ -204,26 +204,26 @@ function makeState(settings: AppSettings, updatedAt = now()): StoredSettingsStat
   };
 }
 
-function normalizeState(value: unknown): StoredSettingsState {
+function normalizeState(value: unknown, clock: () => number): StoredSettingsState {
   if (!isRecord(value)) {
-    return makeState(defaultSettings);
+    return makeState(defaultSettings, clock());
   }
 
   if (value.version === SETTINGS_VERSION) {
     if (isRecord(value.settings)) {
       return makeState(
         normalizeSettings(value.settings),
-        typeof value.updatedAt === "number" ? value.updatedAt : now(),
+        typeof value.updatedAt === "number" ? value.updatedAt : clock(),
       );
     }
 
     return makeState(
       normalizeSettings(value),
-      typeof value.updatedAt === "number" ? value.updatedAt : now(),
+      typeof value.updatedAt === "number" ? value.updatedAt : clock(),
     );
   }
 
-  return makeState(defaultSettings);
+  return makeState(defaultSettings, clock());
 }
 
 export class SettingsStore {
@@ -235,7 +235,7 @@ export class SettingsStore {
 
   private async readState(): Promise<StoredSettingsState> {
     const stored = await this.adapter.read<unknown>(SETTINGS_STORE_KEY);
-    return stored ? normalizeState(stored) : makeState(defaultSettings);
+    return stored ? normalizeState(stored, now) : makeState(defaultSettings, now());
   }
 
   private async writeState(state: StoredSettingsState): Promise<void> {
