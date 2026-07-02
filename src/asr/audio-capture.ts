@@ -140,7 +140,7 @@ export class BrowserAudioCapture implements AudioCapture {
       const inputSampleRate = audioContext.sampleRate;
       const encoder = createPcmEncoder({
         inputSampleRate,
-        targetSampleRate: inputSampleRate,
+        targetSampleRate: this.targetSampleRate,
         chunkDurationMs: this.chunkDurationMs,
         channels: 1,
       });
