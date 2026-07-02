@@ -30,6 +30,7 @@ const serviceEndpointEl = document.getElementById("service-endpoint");
 const serviceTimestampEl = document.getElementById("service-timestamp");
 const supportStatusEl = document.getElementById("support-status");
 const supportDetailEl = document.getElementById("support-detail");
+const supportListEl = document.getElementById("support-list");
 const permissionStatusEl = document.getElementById("permission-status");
 const permissionDetailEl = document.getElementById("permission-detail");
 const permissionListEl = document.getElementById("permission-list");
@@ -58,6 +59,20 @@ function formatCheckedAt(timestamp: number): string {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(timestamp);
+}
+
+function replaceListItems(element: HTMLElement | null, items: ReadonlyArray<string>): void {
+  if (!element) {
+    return;
+  }
+
+  element.replaceChildren();
+
+  for (const item of items) {
+    const li = document.createElement("li");
+    li.textContent = item;
+    element.append(li);
+  }
 }
 
 function describeServiceOutcome(error: unknown, timedOut: boolean): ServiceCheckResult {
@@ -126,7 +141,7 @@ async function checkBrowserSupport(): Promise<SupportCheckResult> {
       detail:
         "This browser does not expose the runtime, permissions, tabs, and tabCapture APIs that live captions rely on.",
       recovery:
-        "Use a Chromium-based browser with extension API support, then reopen this onboarding page from the extension.",
+        "Use a Chromium-based browser with extension API support, then reopen this page from the extension.",
     };
   }
 
@@ -234,6 +249,27 @@ function renderBrowserSupport(result: SupportCheckResult): void {
   if (supportDetailEl) {
     supportDetailEl.textContent = `${result.detail} ${result.recovery}`;
   }
+
+  replaceListItems(
+    supportListEl,
+    result.state === "ready"
+      ? [
+          "The browser exposes the extension APIs the local caption flow needs.",
+          "No browser change is required right now.",
+          "Open the popup after the service check passes.",
+        ]
+      : result.state === "unsupported"
+        ? [
+            "Use a Chromium browser with extension API support.",
+            "Open this page from the installed extension, not a normal tab.",
+            "Then run the readiness check again.",
+          ]
+        : [
+            "Reopen the page from the installed extension.",
+            "Run the readiness check again after the browser context changes.",
+            "Keep this page in the secure extension context.",
+          ],
+  );
 }
 
 function renderPermissions(result: PermissionCheckResult): void {
@@ -251,22 +287,20 @@ function renderPermissions(result: PermissionCheckResult): void {
     permissionDetailEl.textContent = result.detail;
   }
 
-  if (permissionListEl) {
-    const items = [
-      `activeTab, tabs, storage, and tabCapture must be available to the extension.`,
-      `Localhost access must include ${requiredHosts.join(" and ")}.`,
-      result.state === "ready"
-        ? "No permission recovery steps are needed right now."
-        : "Reload the extension, accept the prompt, and try the readiness check again.",
-    ];
-
-    permissionListEl.replaceChildren();
-    for (const item of items) {
-      const li = document.createElement("li");
-      li.textContent = item;
-      permissionListEl.append(li);
-    }
-  }
+  replaceListItems(
+    permissionListEl,
+    result.state === "ready"
+      ? [
+          "activeTab, tabs, storage, and tabCapture are already available.",
+          `Host access includes ${requiredHosts.join(" and ")}.`,
+          "No permission recovery steps are needed right now.",
+        ]
+      : [
+          "Grant activeTab, tabs, storage, and tabCapture when the extension prompts again.",
+          `Allow host access for ${requiredHosts.join(" and ")}.`,
+          "Reload the extension, accept the prompt, and check again.",
+        ],
+  );
 }
 
 function updateOverallStatus(
@@ -280,17 +314,29 @@ function updateOverallStatus(
 
   if (supportResult.state === "unsupported") {
     overallStatusEl.textContent =
-      "This browser cannot run the local caption flow. Use a Chromium-based browser with extension support.";
+      "This browser cannot run the local caption flow. Use a Chromium-based browser with extension support, then check again.";
     return;
   }
 
   if (serviceResult.state === "ready" && permissionResult.state === "ready" && supportResult.state === "ready") {
-    overallStatusEl.textContent = "Local setup is ready.";
+    overallStatusEl.textContent = "Local setup is ready. Open the popup to start captions.";
+    return;
+  }
+
+  if (serviceResult.state === "missing" || serviceResult.state === "failed") {
+    overallStatusEl.textContent =
+      "Start WhisperLiveKit on localhost:8000, then check the service again.";
+    return;
+  }
+
+  if (permissionResult.state !== "ready") {
+    overallStatusEl.textContent =
+      "Reload the extension, grant the missing permissions, then check again.";
     return;
   }
 
   overallStatusEl.textContent =
-    "Review the service, browser support, and permission guidance before starting captions.";
+    "Review the browser support guidance, then run the readiness check again.";
 }
 
 async function runChecks(): Promise<void> {

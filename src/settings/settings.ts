@@ -26,6 +26,8 @@ type SettingsElements = {
   exportDetailsValue: HTMLElement;
   previewSurface: HTMLElement;
   resetButton: HTMLButtonElement;
+  rerunOnboardingButton: HTMLButtonElement;
+  openDiagnosticsButton: HTMLButtonElement;
   exportTimestamps: HTMLInputElement;
   exportSpeakerLabels: HTMLInputElement;
 };
@@ -74,6 +76,8 @@ function getElements(): SettingsElements | null {
   const exportDetailsValue = getRequiredElement<HTMLElement>("export-details-value");
   const previewSurface = getRequiredElement<HTMLElement>("settings-preview");
   const resetButton = getRequiredElement<HTMLButtonElement>("reset-settings");
+  const rerunOnboardingButton = getRequiredElement<HTMLButtonElement>("rerun-onboarding");
+  const openDiagnosticsButton = getRequiredElement<HTMLButtonElement>("open-diagnostics");
   const exportTimestamps = getRequiredElement<HTMLInputElement>("export-timestamps");
   const exportSpeakerLabels = getRequiredElement<HTMLInputElement>("export-speaker-labels");
 
@@ -92,6 +96,8 @@ function getElements(): SettingsElements | null {
     !exportDetailsValue ||
     !previewSurface ||
     !resetButton ||
+    !rerunOnboardingButton ||
+    !openDiagnosticsButton ||
     !exportTimestamps ||
     !exportSpeakerLabels
   ) {
@@ -113,6 +119,8 @@ function getElements(): SettingsElements | null {
     exportDetailsValue,
     previewSurface,
     resetButton,
+    rerunOnboardingButton,
+    openDiagnosticsButton,
     exportTimestamps,
     exportSpeakerLabels,
   };
@@ -145,6 +153,18 @@ function setRadioValue(name: string, value: string): void {
 function getCheckedValue<T extends string>(name: string, fallback: T): T {
   const checked = document.querySelector<HTMLInputElement>(`input[name="${name}"]:checked`);
   return (checked?.value as T | undefined) ?? fallback;
+}
+
+function getExtensionPageUrl(extensionPath: string, fallbackRelativePath: string): string {
+  if (typeof chrome !== "undefined" && chrome.runtime?.getURL) {
+    return chrome.runtime.getURL(extensionPath);
+  }
+
+  return new URL(fallbackRelativePath, window.location.href).toString();
+}
+
+function openExtensionPage(extensionPath: string, fallbackRelativePath: string): void {
+  window.open(getExtensionPageUrl(extensionPath, fallbackRelativePath), "_blank", "noopener");
 }
 
 function renderForm(elements: SettingsElements, settings: AppSettings): void {
@@ -261,7 +281,7 @@ async function loadInitialState(elements: SettingsElements): Promise<void> {
   try {
     const settings = await getSettings();
     syncSummary(elements, settings);
-    setStatus(elements, "saved", "Saved preferences are ready and stored locally.");
+    setStatus(elements, "saved", "Saved preferences are ready. Rerun onboarding if setup changed.");
   } catch {
     syncSummary(elements, defaultSettings);
     setStatus(
@@ -298,6 +318,14 @@ export function initSettingsPage(): void {
     }
 
     void restoreDefaults(elements);
+  });
+
+  elements.rerunOnboardingButton.addEventListener("click", () => {
+    openExtensionPage("src/onboarding/onboarding.html", "../onboarding/onboarding.html");
+  });
+
+  elements.openDiagnosticsButton.addEventListener("click", () => {
+    openExtensionPage("src/diagnostics/diagnostics.html", "../diagnostics/diagnostics.html");
   });
 
   void loadInitialState(elements);
