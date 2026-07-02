@@ -1,8 +1,8 @@
 :root {
   color-scheme: dark;
-  --bg: #0c1016;
-  --panel: rgba(17, 23, 33, 0.92);
-  --panel-strong: rgba(21, 29, 41, 0.98);
+  --bg: #0b1017;
+  --panel: rgba(17, 24, 35, 0.94);
+  --panel-strong: rgba(22, 31, 44, 0.98);
   --border: rgba(182, 196, 214, 0.16);
   --border-strong: rgba(245, 168, 109, 0.38);
   --text: #f6f8fc;
@@ -80,7 +80,7 @@ button {
 
 .hero {
   border-radius: 28px;
-  padding: 22px;
+  padding: 24px;
   display: grid;
   gap: 14px;
 }
@@ -147,6 +147,14 @@ button {
 
 .status-pill[data-status="loading"] {
   color: var(--muted);
+}
+
+.status-pill:focus-visible,
+.secondary-button:focus-visible,
+.choice-card:focus-within,
+.toggle-row:focus-within {
+  outline: 2px solid rgba(245, 168, 109, 0.72);
+  outline-offset: 2px;
 }
 
 .settings-grid {
@@ -257,6 +265,10 @@ button {
   box-shadow: 0 14px 28px rgba(0, 0, 0, 0.18);
 }
 
+.choice-card:has(input:checked) .choice-card__title {
+  color: var(--good);
+}
+
 .choice-card input {
   position: absolute;
   inset: 0;
@@ -343,18 +355,23 @@ button {
   background: rgba(255, 255, 255, 0.05);
 }
 
-.secondary-button:focus-visible,
-.choice-card:focus-within,
-.toggle-row:focus-within {
-  outline: 2px solid rgba(245, 168, 109, 0.72);
-  outline-offset: 2px;
-}
-
 #settings-save-note {
   margin: 0;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.45;
+}
+
+#settings-save-note[data-state="saving"] {
+  color: var(--warn);
+}
+
+#settings-save-note[data-state="saved"] {
+  color: var(--good);
+}
+
+#settings-save-note[data-state="error"] {
+  color: #ffb2a3;
 }
 
 .preview-stage {
@@ -462,6 +479,17 @@ button {
   margin: 0;
   font-size: 14px;
   color: var(--text);
+}
+
+.summary-list div {
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(182, 196, 214, 0.12);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.summary-list dd {
+  line-height: 1.45;
 }
 
 @media (max-width: 960px) {
