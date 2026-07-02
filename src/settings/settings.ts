@@ -26,6 +26,8 @@ type SettingsElements = {
   exportDetailsValue: HTMLElement;
   previewSurface: HTMLElement;
   resetButton: HTMLButtonElement;
+  rerunOnboardingButton: HTMLButtonElement;
+  openDiagnosticsButton: HTMLButtonElement;
   exportTimestamps: HTMLInputElement;
   exportSpeakerLabels: HTMLInputElement;
 };
@@ -59,6 +61,15 @@ function getRequiredElement<T extends HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
 }
 
+function setFormBusy(elements: SettingsElements, busy: boolean): void {
+  elements.form.toggleAttribute("aria-busy", busy);
+  elements.form.dataset.busy = String(busy);
+
+  for (const control of Array.from(elements.form.querySelectorAll<HTMLInputElement>("input"))) {
+    control.disabled = busy;
+  }
+}
+
 function getElements(): SettingsElements | null {
   const form = getRequiredElement<HTMLFormElement>("settings-form");
   const statusPill = getRequiredElement<HTMLElement>("settings-status");
@@ -74,6 +85,8 @@ function getElements(): SettingsElements | null {
   const exportDetailsValue = getRequiredElement<HTMLElement>("export-details-value");
   const previewSurface = getRequiredElement<HTMLElement>("settings-preview");
   const resetButton = getRequiredElement<HTMLButtonElement>("reset-settings");
+  const rerunOnboardingButton = getRequiredElement<HTMLButtonElement>("rerun-onboarding");
+  const openDiagnosticsButton = getRequiredElement<HTMLButtonElement>("open-diagnostics");
   const exportTimestamps = getRequiredElement<HTMLInputElement>("export-timestamps");
   const exportSpeakerLabels = getRequiredElement<HTMLInputElement>("export-speaker-labels");
 
@@ -92,6 +105,8 @@ function getElements(): SettingsElements | null {
     !exportDetailsValue ||
     !previewSurface ||
     !resetButton ||
+    !rerunOnboardingButton ||
+    !openDiagnosticsButton ||
     !exportTimestamps ||
     !exportSpeakerLabels
   ) {
@@ -113,6 +128,8 @@ function getElements(): SettingsElements | null {
     exportDetailsValue,
     previewSurface,
     resetButton,
+    rerunOnboardingButton,
+    openDiagnosticsButton,
     exportTimestamps,
     exportSpeakerLabels,
   };
@@ -124,7 +141,12 @@ function formatExportDetails(settings: AppSettings): string {
     settings.exportDefaults.includeSpeakerLabels ? "speaker labels on" : "speaker labels off",
   ];
 
-  return details.join(" / ");
+  return `Export: ${LABELS.exportFormat[settings.exportDefaults.format]}, ${details.join(", ")}`;
+}
+
+function describeError(error: unknown, fallback: string, recoveryHint: string): string {
+  const message = error instanceof Error && error.message ? error.message : fallback;
+  return `${message} ${recoveryHint}`;
 }
 
 function setStatus(elements: SettingsElements, state: SaveState, note: string): void {
@@ -133,6 +155,8 @@ function setStatus(elements: SettingsElements, state: SaveState, note: string): 
     state === "loading" ? "Loading" : state === "saving" ? "Saving" : state === "error" ? "Needs attention" : "Saved locally";
   elements.statusNote.textContent = note;
   elements.statusNote.dataset.state = state;
+  elements.form.dataset.state = state;
+  setFormBusy(elements, state === "loading" || state === "saving");
 }
 
 function setRadioValue(name: string, value: string): void {
@@ -145,6 +169,18 @@ function setRadioValue(name: string, value: string): void {
 function getCheckedValue<T extends string>(name: string, fallback: T): T {
   const checked = document.querySelector<HTMLInputElement>(`input[name="${name}"]:checked`);
   return (checked?.value as T | undefined) ?? fallback;
+}
+
+function getExtensionPageUrl(extensionPath: string, fallbackRelativePath: string): string {
+  if (typeof chrome !== "undefined" && chrome.runtime?.getURL) {
+    return chrome.runtime.getURL(extensionPath);
+  }
+
+  return new URL(fallbackRelativePath, window.location.href).toString();
+}
+
+function openExtensionPage(extensionPath: string, fallbackRelativePath: string): void {
+  window.open(getExtensionPageUrl(extensionPath, fallbackRelativePath), "_blank", "noopener");
 }
 
 function renderForm(elements: SettingsElements, settings: AppSettings): void {
@@ -221,7 +257,11 @@ async function persist(elements: SettingsElements): Promise<void> {
     setStatus(
       elements,
       "error",
-      error instanceof Error ? error.message : "Could not save the current settings.",
+      describeError(
+        error,
+        "Could not save the current settings.",
+        "Open diagnostics and try again.",
+      ),
     );
   }
 }
@@ -237,7 +277,7 @@ async function restoreDefaults(elements: SettingsElements): Promise<void> {
     }
 
     renderForm(elements, saved);
-    setStatus(elements, "saved", "Default preferences restored and saved locally.");
+    setStatus(elements, "saved", "Defaults restored. Rerun onboarding if setup or permissions changed.");
   } catch (error) {
     if (token !== saveToken) {
       return;
@@ -246,7 +286,7 @@ async function restoreDefaults(elements: SettingsElements): Promise<void> {
     setStatus(
       elements,
       "error",
-      error instanceof Error ? error.message : "Could not restore the defaults.",
+      describeError(error, "Could not restore the defaults.", "Open diagnostics and try again."),
     );
   }
 }
@@ -261,13 +301,13 @@ async function loadInitialState(elements: SettingsElements): Promise<void> {
   try {
     const settings = await getSettings();
     syncSummary(elements, settings);
-    setStatus(elements, "saved", "Saved preferences are ready and stored locally.");
+    setStatus(elements, "saved", "Saved preferences are ready. Rerun onboarding if setup changed.");
   } catch {
     syncSummary(elements, defaultSettings);
     setStatus(
       elements,
       "error",
-      "Saved preferences could not be loaded, so the default values are shown for now.",
+      "Saved preferences could not be loaded. Restore defaults, rerun onboarding, or open diagnostics.",
     );
   }
 
@@ -298,6 +338,14 @@ export function initSettingsPage(): void {
     }
 
     void restoreDefaults(elements);
+  });
+
+  elements.rerunOnboardingButton.addEventListener("click", () => {
+    openExtensionPage("src/onboarding/onboarding.html", "../onboarding/onboarding.html");
+  });
+
+  elements.openDiagnosticsButton.addEventListener("click", () => {
+    openExtensionPage("src/diagnostics/diagnostics.html", "../diagnostics/diagnostics.html");
   });
 
   void loadInitialState(elements);
