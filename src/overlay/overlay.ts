@@ -44,12 +44,17 @@ function deriveOverlayState(session: SessionSnapshot | null): OverlayState {
     session.session.lastError?.code === "permission-denied" ||
     session.session.lastError?.code === "capture-failed"
   ) {
-    return "missing";
+    if (
+      session.session.phase === "checking-agent" ||
+      session.session.phase === "connecting" ||
+      session.session.phase === "listening" ||
+      session.transcript.length === 0
+    ) {
+      return "missing";
+    }
   }
 
-  const phase = session?.session.phase ?? "idle";
-
-  switch (phase) {
+  switch (session.session.phase) {
     case "connecting":
     case "checking-agent":
       return "reconnecting";
