@@ -215,6 +215,22 @@ button {
   white-space: nowrap;
 }
 
+.settings-form[data-busy="true"] {
+  cursor: progress;
+}
+
+.settings-form[data-state="loading"] .choice-card,
+.settings-form[data-state="loading"] .toggle-row,
+.settings-form[data-state="saving"] .choice-card,
+.settings-form[data-state="saving"] .toggle-row {
+  opacity: 0.68;
+  pointer-events: none;
+}
+
+.settings-form[data-state="saving"] .panel {
+  border-color: rgba(245, 168, 109, 0.24);
+}
+
 .option-fieldset {
   border: 0;
   padding: 0;
@@ -330,9 +346,34 @@ button {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
+  align-items: flex-start;
   padding: 4px 2px 0;
+}
+
+.form-footer__copy {
+  display: grid;
+  gap: 6px;
+  max-width: 38ch;
+}
+
+.form-footer__copy h2 {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.form-footer__copy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.form-footer__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
 }
 
 .secondary-button {
@@ -502,6 +543,29 @@ button {
   }
 }
 
+@media (max-width: 840px) {
+  .panel__head {
+    flex-direction: column;
+  }
+
+  .panel__value {
+    align-self: flex-start;
+  }
+
+  .form-footer {
+    flex-direction: column;
+  }
+
+  .form-footer__actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .form-footer__actions .secondary-button {
+    flex: 1 1 180px;
+  }
+}
+
 @media (max-width: 680px) {
   .settings-shell {
     padding: 14px;
@@ -519,11 +583,14 @@ button {
   }
 
   .form-footer {
-    flex-direction: column;
-    align-items: stretch;
+    gap: 14px;
   }
 
   .secondary-button {
+    width: 100%;
+  }
+
+  .form-footer__actions {
     width: 100%;
   }
 }
