@@ -302,6 +302,26 @@ function isContentSnapshotMessage(message: unknown): message is ContentSnapshotM
   );
 }
 
+function isResetContentSnapshot(snapshot: ContentScriptSnapshot): boolean {
+  const session = snapshot.session;
+
+  return (
+    session.phase === "idle" &&
+    session.sessionId === null &&
+    session.meetingId === null &&
+    session.reconnectAttempts === 0 &&
+    session.reconnectDelayMs === null &&
+    session.reconnectBudgetExceeded === false &&
+    session.startedAt === null &&
+    session.connectedAt === null &&
+    session.lastEventAt >= 0 &&
+    session.lastReason === null &&
+    session.agentReady === false &&
+    session.transportReady === false &&
+    snapshot.detection.detected === false
+  );
+}
+
 function isUiBroadcastMessage(message: unknown): message is UiBroadcastMessage {
   return isRecord(message) && message.type === "ktalk.ui.refresh";
 }
@@ -1242,6 +1262,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (isContentSnapshotMessage(message)) {
+    if (isResetContentSnapshot(message.snapshot)) {
+      transitionSessionState(createIdleSessionState(), []);
+      void persistState();
+      notifyUiRefresh();
+      sendResponse(makeSnapshot());
+      return false;
+    }
+
     const nextState = mapContentScriptSnapshotToSessionState(message.snapshot);
     transitionSessionState({
       ...nextState,
