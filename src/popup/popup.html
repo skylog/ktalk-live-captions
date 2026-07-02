@@ -12,7 +12,7 @@
         <div class="eyebrow">Extension status</div>
         <h1 id="popup-title">Live captions</h1>
         <p class="description" id="popup-description">
-          Waiting for background state.
+          Checking the extension, local service, and current session.
         </p>
       </section>
 
@@ -23,11 +23,11 @@
               Service
             </span>
             <span class="status-pill" data-status="unknown" id="service-status">
-              Checking
+              Checking service
             </span>
           </div>
           <p class="status-card__value" id="service-status-value">
-            Local service state will appear here.
+            Verifying that the local ASR service is ready.
           </p>
         </article>
 
@@ -36,27 +36,33 @@
             <span class="status-card__label" id="caption-status-label">
               Captions
             </span>
-            <span class="status-pill" data-status="idle" id="caption-status">
-              Idle
+            <span class="status-pill" data-status="loading" id="caption-status">
+              Loading
             </span>
           </div>
           <p class="status-card__value" id="caption-status-value">
-            Captioning state will appear here.
+            Waiting for the current session state.
           </p>
         </article>
       </section>
 
       <section class="action-panel" aria-label="Primary action">
-        <button
-          class="primary-action"
-          id="primary-action"
-          type="button"
-          aria-live="polite"
-        >
-          Start captions
-        </button>
+        <div class="action-row" role="group" aria-label="Caption controls">
+          <button
+            class="primary-action"
+            id="primary-action"
+            type="button"
+            aria-live="polite"
+            aria-describedby="action-hint"
+          >
+            Start captions
+          </button>
+          <button class="secondary-action" id="refresh-action" type="button">
+            Refresh
+          </button>
+        </div>
         <p class="helper-text" id="action-hint">
-          Connect the button to background state and command handling.
+          Start captions when the meeting tab is ready.
         </p>
       </section>
     </main>
