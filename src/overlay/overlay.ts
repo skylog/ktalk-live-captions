@@ -55,8 +55,6 @@ function deriveOverlayState(session: SessionSnapshot | null): OverlayState {
       return "reconnecting";
     case "listening":
       return "listening";
-    case "reconnecting":
-      return "reconnecting";
     case "finished":
       return "idle";
     case "idle":
