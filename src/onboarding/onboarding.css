@@ -39,7 +39,7 @@ body {
 }
 
 .onboarding-shell {
-  width: min(1040px, 100%);
+  width: min(1120px, 100%);
   margin: 0 auto;
   display: grid;
   gap: 18px;
@@ -81,7 +81,7 @@ dl {
 }
 
 h1 {
-  max-width: 14ch;
+  max-width: 18ch;
   margin-top: 10px;
   font-size: clamp(30px, 4vw, 48px);
   line-height: 1.02;
@@ -89,11 +89,15 @@ h1 {
 }
 
 .hero__lead {
-  max-width: 68ch;
+  max-width: 76ch;
   margin-top: 14px;
   font-size: 15px;
   line-height: 1.6;
   color: var(--muted);
+}
+
+.hero__lead strong {
+  color: var(--text);
 }
 
 .hero__actions {
@@ -146,11 +150,11 @@ h1 {
 }
 
 .status-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .guide-grid {
-  grid-template-columns: 1.1fr 0.9fr;
+  grid-template-columns: 1fr 1fr;
 }
 
 .status-card,
@@ -198,11 +202,13 @@ h1 {
   color: var(--accent);
 }
 
-.status-pill[data-status="missing"] {
+.status-pill[data-status="missing"],
+.status-pill[data-status="warning"] {
   color: var(--warn);
 }
 
-.status-pill[data-status="failed"] {
+.status-pill[data-status="failed"],
+.status-pill[data-status="unsupported"] {
   color: var(--bad);
 }
 
@@ -213,6 +219,11 @@ h1 {
   color: var(--muted);
   font-size: 14px;
   line-height: 1.6;
+}
+
+.status-card__body strong,
+.guide-card strong {
+  color: var(--text);
 }
 
 .status-meta {
@@ -234,8 +245,10 @@ h1 {
   margin-top: 6px;
   color: var(--text);
   font-size: 14px;
+  line-height: 1.5;
 }
 
+.status-list,
 .permission-list {
   margin-top: 16px;
   padding-left: 18px;
@@ -246,6 +259,10 @@ h1 {
   line-height: 1.5;
 }
 
+.status-list {
+  color: var(--muted);
+}
+
 .guide-card ol {
   margin-top: 12px;
   padding-left: 18px;
@@ -254,6 +271,13 @@ h1 {
   color: var(--text);
   font-size: 14px;
   line-height: 1.55;
+}
+
+.guide-card code {
+  padding: 0 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
 }
 
 .footer-card {
@@ -275,20 +299,10 @@ h1 {
   line-height: 1.5;
 }
 
-@media (max-width: 840px) {
+@media (max-width: 960px) {
   .status-grid,
-  .guide-grid,
-  .footer-card {
+  .guide-grid {
     grid-template-columns: 1fr;
-  }
-
-  .footer-card {
-    display: grid;
-  }
-
-  .footer-card__note {
-    max-width: none;
-    min-width: 0;
   }
 }
 
@@ -305,11 +319,25 @@ h1 {
     border-radius: 18px;
   }
 
-  .status-card__header {
+  .status-card__header,
+  .footer-card {
     flex-direction: column;
   }
 
   .status-meta {
     grid-template-columns: 1fr;
+  }
+
+  .hero__actions {
+    align-items: stretch;
+  }
+
+  .primary-action {
+    width: 100%;
+  }
+
+  .footer-card__note {
+    max-width: none;
+    min-width: 0;
   }
 }
