@@ -167,11 +167,11 @@ function sortByRecency(records: SessionHistoryRecord[]): SessionHistoryRecord[] 
   });
 }
 
-function normalizeState(state: unknown): SessionHistoryState {
+function normalizeState(state: unknown, clock: () => number): SessionHistoryState {
   if (!isRecord(state) || state.version !== 1 || !Array.isArray(state.sessions)) {
     return {
       version: 1,
-      updatedAt: now(),
+      updatedAt: clock(),
       sessions: [],
     };
   }
@@ -186,7 +186,7 @@ function normalizeState(state: unknown): SessionHistoryState {
             meetingId: typeof segment.meetingId === "string" ? segment.meetingId : "",
             status: segment.status === "final" ? "final" : "partial",
             text: typeof segment.text === "string" ? segment.text : "",
-            timestamp: typeof segment.timestamp === "number" ? segment.timestamp : now(),
+            timestamp: typeof segment.timestamp === "number" ? segment.timestamp : clock(),
             chunkIndex: typeof segment.chunkIndex === "number" ? segment.chunkIndex : null,
             sampleRate: typeof segment.sampleRate === "number" ? segment.sampleRate : null,
             channels: typeof segment.channels === "number" ? segment.channels : null,
@@ -236,7 +236,7 @@ function normalizeState(state: unknown): SessionHistoryState {
 
   return {
     version: 1,
-    updatedAt: typeof state.updatedAt === "number" ? state.updatedAt : now(),
+    updatedAt: typeof state.updatedAt === "number" ? state.updatedAt : clock(),
     sessions,
   };
 }
@@ -290,7 +290,7 @@ export class SessionHistoryStore {
 
   private async readState(): Promise<SessionHistoryState> {
     const stored = await this.adapter.read<unknown>(SESSION_HISTORY_KEY);
-    return stored ? normalizeState(stored) : makeEmptyState(this.clock);
+    return stored ? normalizeState(stored, this.clock) : makeEmptyState(this.clock);
   }
 
   private async writeState(state: SessionHistoryState): Promise<void> {
