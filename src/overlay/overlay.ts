@@ -1,6 +1,18 @@
 import type { RuntimeResponse, SessionSnapshot, TranscriptSegment } from "../shared/protocol";
 
-type OverlayState = "idle" | "listening" | "paused" | "reconnecting";
+type OverlayState = "idle" | "listening" | "reconnecting" | "missing";
+
+type OverlayPresentation = {
+  state: OverlayState;
+  statusLabel: string;
+  chipLabel: string;
+  chipHint: string;
+  title: string;
+  summary: string;
+  primaryCaption: string;
+  secondaryCaption: string;
+  primaryActionLabel: string;
+};
 
 const state = {
   session: null as SessionSnapshot | null,
@@ -17,25 +29,20 @@ function getLatestSegments(session: SessionSnapshot | null): TranscriptSegment[]
   return session?.transcript.slice(-2) ?? [];
 }
 
-function statusLabel(nextState: OverlayState, session: SessionSnapshot | null): string {
-  if (session?.session.phase === "finished" || (nextState === "idle" && (session?.transcript.length ?? 0) > 0)) {
-    return "Stopped";
-  }
-
-  switch (nextState) {
-    case "idle":
-      return "Idle";
-    case "paused":
-      return "Paused";
-    case "reconnecting":
-      return "Reconnecting";
-    case "listening":
-    default:
-      return "Listening";
-  }
-}
-
 function deriveOverlayState(session: SessionSnapshot | null): OverlayState {
+  if (!session) {
+    return "missing";
+  }
+
+  if (
+    session.session.health.status === "unreachable" ||
+    session.session.lastError?.code === "service-unreachable" ||
+    session.session.lastError?.code === "permission-denied" ||
+    session.session.lastError?.code === "capture-failed"
+  ) {
+    return "missing";
+  }
+
   const phase = session?.session.phase ?? "idle";
 
   switch (phase) {
@@ -54,6 +61,90 @@ function deriveOverlayState(session: SessionSnapshot | null): OverlayState {
   }
 }
 
+function getOverlayPresentation(session: SessionSnapshot | null, currentState: OverlayState): OverlayPresentation {
+  const transcript = session?.transcript ?? [];
+  const latestSegments = getLatestSegments(session);
+  const hasTranscript = transcript.length > 0;
+  const isFinished = session?.session.phase === "finished";
+  const reconnectAttempts = session?.session.reconnectAttempts ?? 0;
+  const reconnectDelayMs = session?.session.reconnectDelayMs;
+  const lastError = session?.session.lastError;
+  const fallbackReason =
+    session?.session.health.reason ??
+    lastError?.message ??
+    "Check the local service and extension permissions in diagnostics.";
+
+  switch (currentState) {
+    case "listening":
+      return {
+        state: currentState,
+        statusLabel: "Listening",
+        chipLabel: "Live captions active",
+        chipHint: "Audio is flowing through the local caption pipeline.",
+        title: "Listening to the meeting",
+        summary: "Captions update in real time while the current meeting stays active.",
+        primaryCaption: latestSegments[0]?.text ?? "Listening for the first caption.",
+        secondaryCaption:
+          latestSegments[1]?.text ??
+          (hasTranscript
+            ? `${transcript.length} caption${transcript.length === 1 ? "" : "s"} captured locally.`
+            : "Keep speaking in the meeting tab to populate the transcript."),
+        primaryActionLabel: "Pause captions",
+      };
+    case "reconnecting":
+      return {
+        state: currentState,
+        statusLabel: "Reconnecting",
+        chipLabel: "Reconnecting",
+        chipHint: "The overlay is waiting for the local service to recover.",
+        title: "Trying to recover the stream",
+        summary:
+          reconnectDelayMs !== null
+            ? `Retry ${reconnectAttempts} is queued in ${reconnectDelayMs} ms.`
+            : "The overlay is waiting for the local service to come back.",
+        primaryCaption: latestSegments[0]?.text ?? "Waiting for the connection to recover.",
+        secondaryCaption:
+          latestSegments[1]?.text ??
+          "Captions resume automatically once the local transport is healthy again.",
+        primaryActionLabel: "Pause captions",
+      };
+    case "missing":
+      return {
+        state: currentState,
+        statusLabel: "Missing",
+        chipLabel: "Setup missing",
+        chipHint: "Local service or browser access is unavailable.",
+        title: "Local setup is missing",
+        summary: fallbackReason,
+        primaryCaption: "Live captions are unavailable.",
+        secondaryCaption:
+          lastError?.recoverable === false
+            ? lastError.message
+            : "Start the local service, restore capture permissions, then refresh the overlay.",
+        primaryActionLabel: "Start captions",
+      };
+    case "idle":
+    default:
+      return {
+        state: "idle",
+        statusLabel: isFinished || hasTranscript ? "Stopped" : "Idle",
+        chipLabel: isFinished ? "Session ended" : hasTranscript ? "Latest captions saved" : "Waiting",
+        chipHint: isFinished
+          ? "The last transcript stays visible until the next session starts."
+          : hasTranscript
+            ? `${transcript.length} caption${transcript.length === 1 ? "" : "s"} captured locally.`
+            : "Open a supported meeting tab to begin local captions.",
+        title: isFinished ? "Session finished" : "Waiting for meeting audio",
+        summary: isFinished
+          ? "The last transcript remains available until a new session starts."
+          : "Captions stay local and update as soon as a meeting is detected.",
+        primaryCaption: latestSegments[0]?.text ?? "Waiting for meeting audio.",
+        secondaryCaption: latestSegments[1]?.text ?? (hasTranscript ? "Latest captions are preserved locally." : "The overlay stays small until captions begin."),
+        primaryActionLabel: "Start captions",
+      };
+  }
+}
+
 function render(session: SessionSnapshot | null): void {
   const shell = document.querySelector<HTMLElement>('[data-shell="overlay"]');
   if (!shell) {
@@ -61,49 +152,61 @@ function render(session: SessionSnapshot | null): void {
   }
 
   const currentState = deriveOverlayState(session);
-  const transcript = session?.transcript ?? [];
-  const hasTranscript = transcript.length > 0;
+  const presentation = getOverlayPresentation(session, currentState);
   const status = shell.querySelector<HTMLElement>("[data-overlay-status]");
-  const idleChip = shell.querySelector<HTMLElement>("[data-idle-chip]");
+  const chip = shell.querySelector<HTMLElement>("[data-state-chip]");
+  const chipLabel = shell.querySelector<HTMLElement>("[data-state-chip-label]");
+  const chipHint = shell.querySelector<HTMLElement>("[data-state-chip-hint]");
   const panel = shell.querySelector<HTMLElement>(".overlay-panel");
   const primaryAction = shell.querySelector<HTMLButtonElement>('[data-action="toggle-pause"]');
+  const title = shell.querySelector<HTMLElement>("[data-overlay-title]");
+  const summary = shell.querySelector<HTMLElement>("[data-overlay-summary]");
   const primaryCaption = shell.querySelector<HTMLElement>(".caption-line--primary");
   const secondaryCaption = shell.querySelector<HTMLElement>(".caption-line--secondary");
 
   shell.dataset.overlayState = currentState;
 
-  if (idleChip) {
-    idleChip.hidden = currentState !== "idle" || hasTranscript;
-  }
-
   if (panel) {
-    panel.hidden = currentState === "idle" && !hasTranscript;
+    panel.dataset.overlayState = currentState;
   }
 
   if (status) {
-    status.textContent = statusLabel(currentState, session);
+    status.textContent = presentation.statusLabel;
+    status.dataset.status =
+      currentState === "missing" ? "error" : currentState === "reconnecting" ? "warning" : currentState === "listening" ? "healthy" : "unknown";
+  }
+
+  if (chip) {
+    chip.dataset.overlayState = currentState;
+    chip.hidden = currentState === "listening";
+  }
+
+  if (chipLabel) {
+    chipLabel.textContent = presentation.chipLabel;
+  }
+
+  if (chipHint) {
+    chipHint.textContent = presentation.chipHint;
+  }
+
+  if (title) {
+    title.textContent = presentation.title;
+  }
+
+  if (summary) {
+    summary.textContent = presentation.summary;
   }
 
   if (primaryAction) {
-    primaryAction.textContent =
-      currentState === "paused" ? "Resume" : currentState === "idle" ? "Start" : "Pause";
+    primaryAction.textContent = presentation.primaryActionLabel;
   }
 
-  const latestSegments = getLatestSegments(session);
   if (primaryCaption) {
-    primaryCaption.textContent = latestSegments[0]?.text ?? "Waiting for the first caption.";
+    primaryCaption.textContent = presentation.primaryCaption;
   }
 
   if (secondaryCaption) {
-    secondaryCaption.textContent = latestSegments[1]?.text
-      ? latestSegments[1].text
-      : session?.session.phase === "finished"
-        ? "Session ended. Open the transcript for the full notes."
-        : currentState === "reconnecting"
-          ? "Reconnecting to local service..."
-          : hasTranscript
-            ? `${transcript.length} caption${transcript.length === 1 ? "" : "s"} captured.`
-            : "Waiting for meeting audio";
+    secondaryCaption.textContent = presentation.secondaryCaption;
   }
 }
 
@@ -143,12 +246,7 @@ function setupInteractions(): void {
     switch (action) {
       case "toggle-pause": {
         const currentState = shell.dataset.overlayState as OverlayState | undefined;
-        const overlayAction =
-          currentState === "paused"
-            ? "resume"
-            : currentState === "listening" || currentState === "reconnecting"
-              ? "pause"
-              : "start";
+        const overlayAction = currentState === "listening" || currentState === "reconnecting" ? "pause" : "start";
         shell.dispatchEvent(
           new CustomEvent("ktalk:overlay-action", {
             bubbles: true,
