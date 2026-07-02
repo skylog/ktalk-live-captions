@@ -140,8 +140,8 @@ function getOverlayPresentation(session: SessionSnapshot | null, currentState: O
     case "idle":
       return {
         state: currentState,
-        statusLabel: "Stopped",
-        chipLabel: hasTranscript ? "Session ended" : "Stopped",
+        statusLabel: hasTranscript ? "Stopped" : "Idle",
+        chipLabel: hasTranscript ? "Latest captions saved" : "Stopped",
         chipHint: hasTranscript
           ? `${transcriptCountLabel} captured locally.`
           : "The overlay will expand again when captions start.",
@@ -150,7 +150,8 @@ function getOverlayPresentation(session: SessionSnapshot | null, currentState: O
           ? "The transcript remains available in the sidebar until a new session starts."
           : "Start captions when a supported meeting tab is ready.",
         primaryCaption: latestSegments[0]?.text ?? "No transcript captured yet.",
-        secondaryCaption: latestSegments[1]?.text ?? (hasTranscript ? "Latest captions are saved locally." : "Open a meeting tab to begin."),
+        secondaryCaption:
+          latestSegments[1]?.text ?? (hasTranscript ? "Latest captions are saved locally." : "Open a meeting tab to begin."),
         primaryActionLabel: "Start captions",
       };
     case "loading":
@@ -221,7 +222,7 @@ function render(session: SessionSnapshot | null): void {
 
   if (panel) {
     panel.dataset.overlayState = currentState;
-    panel.hidden = currentState === "idle";
+    panel.hidden = currentState === "empty";
   }
 
   if (status) {
@@ -240,7 +241,7 @@ function render(session: SessionSnapshot | null): void {
 
   if (chip) {
     chip.dataset.overlayState = currentState;
-    chip.hidden = currentState !== "idle";
+    chip.hidden = currentState === "listening";
   }
 
   if (chipLabel) {
@@ -266,7 +267,7 @@ function render(session: SessionSnapshot | null): void {
   }
 
   if (openTranscriptAction) {
-    openTranscriptAction.disabled = state.isRefreshing;
+    openTranscriptAction.disabled = state.isRefreshing || state.isActionPending;
   }
 
   if (primaryCaption) {
@@ -321,8 +322,7 @@ async function toggleCaptions(): Promise<void> {
   render(state.session);
 
   const currentState = deriveOverlayState(state.session);
-  const shouldStop =
-    currentState === "listening" || currentState === "reconnecting" || currentState === "loading";
+  const shouldStop = currentState === "listening" || currentState === "reconnecting" || currentState === "loading";
 
   if (shouldStop) {
     await sendRuntimeMessage<RuntimeResponse>({

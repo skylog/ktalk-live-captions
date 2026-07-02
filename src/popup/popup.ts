@@ -383,7 +383,7 @@ function deriveBannerState(background: SessionSnapshot | null, mode: PopupMode):
     case "loading":
       return {
         status: "loading",
-        label: "Loading",
+        label: background?.session.phase === "checking-agent" ? "Checking" : "Refreshing",
         detail:
           background?.session.phase === "checking-agent"
             ? "Detecting the meeting tab and local service."
@@ -400,13 +400,16 @@ function deriveBannerState(background: SessionSnapshot | null, mode: PopupMode):
     case "reconnecting":
       return {
         status: "reconnecting",
-        label: "Reconnecting",
-        detail: reconnectDelayMs !== null ? `Retrying in ${reconnectDelayMs} ms.` : "The session is reconnecting automatically.",
+        label: "Recovering",
+        detail:
+          reconnectDelayMs !== null
+            ? `Retrying in ${reconnectDelayMs} ms.`
+            : "The session is reconnecting automatically.",
       };
     case "ready":
       return {
         status: "ready",
-        label: "Ready",
+        label: transcript.length > 0 ? "Ready to start" : "Ready",
         detail:
           transcript.length > 0
             ? "A transcript exists and you can start a new local session."
@@ -417,13 +420,13 @@ function deriveBannerState(background: SessionSnapshot | null, mode: PopupMode):
     case "missing":
       return {
         status: "missing",
-        label: "Service missing",
+        label: "Service offline",
         detail: "Start the local ASR service at localhost:8000/asr, then retry.",
       };
     case "error":
       return {
         status: "error",
-        label: "Setup needed",
+        label: "Capture blocked",
         detail: background?.session.lastError?.message ?? "Restore permissions or the local service, then try again.",
       };
     case "empty":
@@ -497,7 +500,7 @@ function applyRuntimeUnavailable(): void {
   runtimeState.isRefreshing = false;
   setState({
     title: "Live captions",
-    description: "The popup could not reach the background worker.",
+    description: "The popup lost contact with the background worker.",
     banner: {
       status: "error",
       label: "Background unavailable",
@@ -536,11 +539,11 @@ async function refreshFromRuntime(reason: RefreshReason = "manual"): Promise<voi
     title: "Live captions",
     description:
       reason === "initial"
-        ? "Checking the extension and local service."
+        ? "Checking the extension, local service, and current session."
         : "Refreshing the current session state.",
     banner: {
       status: "loading",
-      label: reason === "initial" ? "Loading" : "Refreshing",
+      label: reason === "initial" ? "Checking" : "Refreshing",
       detail:
         reason === "initial"
           ? "Verifying that the popup can reach the local caption pipeline."
@@ -548,7 +551,7 @@ async function refreshFromRuntime(reason: RefreshReason = "manual"): Promise<voi
     },
     service: {
       status: "loading",
-      label: "Checking service",
+      label: "Checking",
       detail: "Verifying that the local ASR service is ready.",
     },
     captions: {

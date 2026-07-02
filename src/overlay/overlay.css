@@ -233,7 +233,7 @@ button {
 
 .overlay-shell[data-overlay-state="empty"] {
   --overlay-panel-border: rgba(152, 181, 207, 0.18);
-  --overlay-chip-bg: rgba(10, 14, 20, 0.88);
+  --overlay-chip-bg: rgba(10, 14, 20, 0.9);
   --overlay-chip-border: rgba(152, 181, 207, 0.18);
   --overlay-status-bg: rgba(255, 255, 255, 0.04);
   --overlay-status-border: rgba(152, 181, 207, 0.2);
@@ -282,6 +282,10 @@ button {
 }
 
 .overlay-shell[data-overlay-state="listening"] .overlay-chip {
+  display: none;
+}
+
+.overlay-shell[data-overlay-state="empty"] .overlay-panel {
   display: none;
 }
 
