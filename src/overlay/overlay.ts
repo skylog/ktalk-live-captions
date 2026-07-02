@@ -34,6 +34,10 @@ function deriveOverlayState(session: SessionSnapshot | null): OverlayState {
     return "missing";
   }
 
+  if (session.session.phase === "reconnecting") {
+    return "reconnecting";
+  }
+
   if (
     session.session.health.status === "unreachable" ||
     session.session.lastError?.code === "service-unreachable" ||
