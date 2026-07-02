@@ -61,6 +61,15 @@ function getRequiredElement<T extends HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
 }
 
+function setFormBusy(elements: SettingsElements, busy: boolean): void {
+  elements.form.toggleAttribute("aria-busy", busy);
+  elements.form.dataset.busy = String(busy);
+
+  for (const control of Array.from(elements.form.querySelectorAll<HTMLInputElement>("input"))) {
+    control.disabled = busy;
+  }
+}
+
 function getElements(): SettingsElements | null {
   const form = getRequiredElement<HTMLFormElement>("settings-form");
   const statusPill = getRequiredElement<HTMLElement>("settings-status");
@@ -132,7 +141,12 @@ function formatExportDetails(settings: AppSettings): string {
     settings.exportDefaults.includeSpeakerLabels ? "speaker labels on" : "speaker labels off",
   ];
 
-  return details.join(" / ");
+  return `Export: ${LABELS.exportFormat[settings.exportDefaults.format]}, ${details.join(", ")}`;
+}
+
+function describeError(error: unknown, fallback: string, recoveryHint: string): string {
+  const message = error instanceof Error && error.message ? error.message : fallback;
+  return `${message} ${recoveryHint}`;
 }
 
 function setStatus(elements: SettingsElements, state: SaveState, note: string): void {
@@ -141,6 +155,8 @@ function setStatus(elements: SettingsElements, state: SaveState, note: string): 
     state === "loading" ? "Loading" : state === "saving" ? "Saving" : state === "error" ? "Needs attention" : "Saved locally";
   elements.statusNote.textContent = note;
   elements.statusNote.dataset.state = state;
+  elements.form.dataset.state = state;
+  setFormBusy(elements, state === "loading" || state === "saving");
 }
 
 function setRadioValue(name: string, value: string): void {
@@ -241,7 +257,11 @@ async function persist(elements: SettingsElements): Promise<void> {
     setStatus(
       elements,
       "error",
-      error instanceof Error ? error.message : "Could not save the current settings.",
+      describeError(
+        error,
+        "Could not save the current settings.",
+        "Open diagnostics and try again.",
+      ),
     );
   }
 }
@@ -257,7 +277,7 @@ async function restoreDefaults(elements: SettingsElements): Promise<void> {
     }
 
     renderForm(elements, saved);
-    setStatus(elements, "saved", "Default preferences restored and saved locally.");
+    setStatus(elements, "saved", "Defaults restored. Rerun onboarding if setup or permissions changed.");
   } catch (error) {
     if (token !== saveToken) {
       return;
@@ -266,7 +286,7 @@ async function restoreDefaults(elements: SettingsElements): Promise<void> {
     setStatus(
       elements,
       "error",
-      error instanceof Error ? error.message : "Could not restore the defaults.",
+      describeError(error, "Could not restore the defaults.", "Open diagnostics and try again."),
     );
   }
 }
@@ -287,7 +307,7 @@ async function loadInitialState(elements: SettingsElements): Promise<void> {
     setStatus(
       elements,
       "error",
-      "Saved preferences could not be loaded, so the default values are shown for now.",
+      "Saved preferences could not be loaded. Restore defaults, rerun onboarding, or open diagnostics.",
     );
   }
 

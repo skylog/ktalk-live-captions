@@ -2,10 +2,16 @@ import type { RuntimeRequest, RuntimeResponse, SessionSnapshot, TranscriptSegmen
 
 type PopupStatus = "loading" | "unknown" | "ready" | "missing" | "active" | "reconnecting" | "idle" | "error";
 type RefreshReason = "initial" | "manual" | "runtime" | "action";
+type PopupMode = "loading" | "empty" | "ready" | "active" | "reconnecting" | "missing" | "error";
 
 type PopupState = {
   title: string;
   description: string;
+  banner: {
+    status: PopupStatus;
+    label: string;
+    detail: string;
+  };
   service: {
     status: PopupStatus;
     label: string;
@@ -29,6 +35,11 @@ type PopupRuntimeState = {
 const defaultState: PopupState = {
   title: "Live captions",
   description: "Checking the extension, local service, and current session.",
+  banner: {
+    status: "loading",
+    label: "Loading",
+    detail: "Waiting for the current session state.",
+  },
   service: {
     status: "loading",
     label: "Checking service",
@@ -43,7 +54,7 @@ const defaultState: PopupState = {
   actionHint: "Wait for the current connection check to finish.",
 };
 
-const state: PopupState = { ...defaultState };
+const state: PopupState = { ...defaultState, banner: { ...defaultState.banner }, service: { ...defaultState.service }, captions: { ...defaultState.captions } };
 const runtimeState: PopupRuntimeState = {
   background: null,
   isRefreshing: false,
@@ -52,6 +63,9 @@ const runtimeState: PopupRuntimeState = {
 
 const popupTitleEl = document.getElementById("popup-title");
 const popupDescriptionEl = document.getElementById("popup-description");
+const popupBannerEl = document.getElementById("popup-banner");
+const popupBannerLabelEl = document.getElementById("popup-banner-label");
+const popupBannerValueEl = document.getElementById("popup-banner-value");
 const serviceStatusEl = document.getElementById("service-status");
 const serviceValueEl = document.getElementById("service-status-value");
 const captionStatusEl = document.getElementById("caption-status");
@@ -60,12 +74,11 @@ const primaryActionEl = document.getElementById("primary-action") as HTMLButtonE
 const refreshActionEl = document.getElementById("refresh-action") as HTMLButtonElement | null;
 const actionHintEl = document.getElementById("action-hint");
 
-function syncStatus(
-  element: HTMLElement | null,
-  status: PopupStatus,
-  label: string,
-): void {
-  if (!element) return;
+function syncStatus(element: HTMLElement | null, status: PopupStatus, label: string): void {
+  if (!element) {
+    return;
+  }
+
   element.dataset.status = status;
   element.textContent = label;
 }
@@ -77,6 +90,18 @@ function render(): void {
 
   if (popupDescriptionEl) {
     popupDescriptionEl.textContent = state.description;
+  }
+
+  if (popupBannerEl) {
+    popupBannerEl.dataset.status = state.banner.status;
+  }
+
+  if (popupBannerLabelEl) {
+    popupBannerLabelEl.textContent = state.banner.label;
+  }
+
+  if (popupBannerValueEl) {
+    popupBannerValueEl.textContent = state.banner.detail;
   }
 
   syncStatus(serviceStatusEl, state.service.status, state.service.label);
@@ -92,8 +117,8 @@ function render(): void {
 
   if (primaryActionEl) {
     primaryActionEl.textContent = state.actionLabel;
-    primaryActionEl.disabled = runtimeState.isActionPending;
-    primaryActionEl.setAttribute("aria-busy", runtimeState.isActionPending ? "true" : "false");
+    primaryActionEl.disabled = runtimeState.isRefreshing || runtimeState.isActionPending;
+    primaryActionEl.setAttribute("aria-busy", runtimeState.isRefreshing || runtimeState.isActionPending ? "true" : "false");
   }
 
   if (refreshActionEl) {
@@ -113,6 +138,10 @@ function setState(nextState: Partial<PopupState>): void {
 
   if (typeof nextState.description === "string") {
     state.description = nextState.description;
+  }
+
+  if (nextState.banner) {
+    state.banner = { ...state.banner, ...nextState.banner };
   }
 
   if (nextState.service) {
@@ -188,43 +217,51 @@ function makeErrorServiceState(message: string): PopupState["service"] {
   };
 }
 
-function makeRuntimeUnavailableState(): PopupState {
-  return {
-    title: "Live captions",
-    description: "The popup could not reach the background worker.",
-    service: makeMissingServiceState(
-      "Reload the extension, then open the popup again to reconnect.",
-    ),
-    captions: {
-      status: "error",
-      label: "Unavailable",
-      detail: "The current session state is not available right now.",
-    },
-    actionLabel: "Start captions",
-    actionHint: "The background worker is unavailable. Restore the local service, then try again.",
-  };
+function isCaptionsActivePhase(phase: SessionSnapshot["session"]["phase"]): boolean {
+  return phase === "checking-agent" || phase === "connecting" || phase === "listening" || phase === "reconnecting";
 }
 
-function makeLoadingState(reason: RefreshReason, action: { label: string; hint: string }): PopupState {
-  return {
-    title: "Live captions",
-    description:
-      reason === "initial"
-        ? "Checking the extension and local service."
-        : "Refreshing the current session state.",
-    service: {
-      status: "loading",
-      label: "Checking service",
-      detail: "Verifying that the local ASR service is ready.",
-    },
-    captions: {
-      status: "loading",
-      label: "Loading",
-      detail: "Waiting for the current session state.",
-    },
-    actionLabel: action.label,
-    actionHint: action.hint,
-  };
+function derivePopupMode(background: SessionSnapshot | null): PopupMode {
+  if (runtimeState.isRefreshing || runtimeState.isActionPending) {
+    return "loading";
+  }
+
+  if (!background) {
+    return "missing";
+  }
+
+  const phase = background.session.phase;
+  const transcript = background.transcript;
+
+  if (background.session.health.status === "unreachable" || background.session.lastError?.code === "service-unreachable") {
+    return "missing";
+  }
+
+  if (background.session.lastError?.code === "permission-denied" || background.session.lastError?.code === "capture-failed") {
+    return "error";
+  }
+
+  if (phase === "reconnecting") {
+    return "reconnecting";
+  }
+
+  if (phase === "checking-agent" || phase === "connecting") {
+    return "loading";
+  }
+
+  if (phase === "listening") {
+    return "active";
+  }
+
+  if (phase === "finished") {
+    return transcript.length > 0 ? "ready" : "empty";
+  }
+
+  if (transcript.length > 0) {
+    return "ready";
+  }
+
+  return background.session.health.status === "ready" ? "empty" : "loading";
 }
 
 function mapServiceState(snapshot: SessionSnapshot | null): PopupState["service"] {
@@ -247,9 +284,7 @@ function mapServiceState(snapshot: SessionSnapshot | null): PopupState["service"
         detail: "Verifying the local ASR endpoint before captions start.",
       };
     case "unreachable":
-      return makeMissingServiceState(
-        "Nothing is listening on localhost:8000/asr. Start the local ASR service, then refresh.",
-      );
+      return makeMissingServiceState("Nothing is listening on localhost:8000/asr. Start the local ASR service, then retry.");
     case "degraded":
       return {
         status: "reconnecting",
@@ -266,22 +301,27 @@ function mapServiceState(snapshot: SessionSnapshot | null): PopupState["service"
   }
 }
 
-function mapCaptionState(background: SessionSnapshot | null): PopupState["captions"] {
+function mapCaptionState(background: SessionSnapshot | null, mode: PopupMode): PopupState["captions"] {
   const phase = background?.session.phase ?? "idle";
   const transcript = background?.transcript ?? [];
   const latestSegment = transcript[transcript.length - 1];
   const latestPreview = formatTranscriptPreview(latestSegment);
-  const startedAt = background?.session.startedAt;
-  const endedAt = background?.session.endedAt;
+  const startedAt = background?.session.startedAt ?? null;
+  const endedAt = background?.session.endedAt ?? null;
 
-  switch (phase) {
-    case "connecting":
+  switch (mode) {
+    case "loading":
       return {
-        status: "reconnecting",
-        label: "Connecting",
-        detail: "Starting the live caption session for the current meeting.",
+        status: "loading",
+        label: "Loading",
+        detail:
+          phase === "checking-agent"
+            ? "Detecting a supported meeting tab."
+            : phase === "connecting"
+              ? "Starting the live caption session."
+              : "Waiting for the current session state.",
       };
-    case "listening":
+    case "active":
       return {
         status: "active",
         label: "Live",
@@ -293,22 +333,31 @@ function mapCaptionState(background: SessionSnapshot | null): PopupState["captio
         label: "Reconnecting",
         detail: latestPreview ?? "Trying to restore the live caption stream.",
       };
-    case "finished":
+    case "ready":
       return {
-        status: "idle",
-        label: "Stopped",
+        status: "ready",
+        label: "Ready",
         detail:
-          typeof endedAt === "number"
-            ? `The last session ended at ${formatTime(endedAt)}.`
-            : "The last caption session is complete.",
+          latestPreview ??
+          (transcript.length > 0
+            ? `${transcript.length} transcript segment${transcript.length === 1 ? "" : "s"} captured.`
+            : "A previous session is available and ready to review."),
       };
-    case "checking-agent":
+    case "missing":
       return {
-        status: "loading",
-        label: "Checking",
-        detail: "Looking for a supported meeting tab.",
+        status: "missing",
+        label: "Unavailable",
+        detail: "The local service is offline or the popup could not reach the background worker.",
       };
-    case "idle":
+    case "error":
+      return {
+        status: "error",
+        label: "Blocked",
+        detail:
+          background?.session.lastError?.message ??
+          "Restore capture permissions or the local service before starting again.",
+      };
+    case "empty":
     default:
       return {
         status: "idle",
@@ -317,26 +366,90 @@ function mapCaptionState(background: SessionSnapshot | null): PopupState["captio
           latestPreview ??
           (transcript.length > 0
             ? `${transcript.length} transcript segment${transcript.length === 1 ? "" : "s"} captured.`
-            : "Waiting for a supported meeting tab."),
+            : endedAt !== null
+              ? `The last session ended at ${formatTime(endedAt)}.`
+              : "Waiting for a supported meeting tab."),
       };
   }
 }
 
-function deriveAction(background: SessionSnapshot | null): { label: string; hint: string } {
-  const phase = background?.session.phase ?? "idle";
+function deriveBannerState(background: SessionSnapshot | null, mode: PopupMode): PopupState["banner"] {
+  const transcript = background?.transcript ?? [];
+  const startedAt = background?.session.startedAt ?? null;
+  const endedAt = background?.session.endedAt ?? null;
+  const reconnectDelayMs = background?.session.reconnectDelayMs ?? null;
+
+  switch (mode) {
+    case "loading":
+      return {
+        status: "loading",
+        label: "Loading",
+        detail:
+          background?.session.phase === "checking-agent"
+            ? "Detecting the meeting tab and local service."
+            : background?.session.phase === "connecting"
+              ? "Connecting audio to the local caption service."
+              : "Refreshing the current session state.",
+      };
+    case "active":
+      return {
+        status: "active",
+        label: "Captions active",
+        detail: "Use Stop captions to end the current session.",
+      };
+    case "reconnecting":
+      return {
+        status: "reconnecting",
+        label: "Reconnecting",
+        detail: reconnectDelayMs !== null ? `Retrying in ${reconnectDelayMs} ms.` : "The session is reconnecting automatically.",
+      };
+    case "ready":
+      return {
+        status: "ready",
+        label: "Ready",
+        detail:
+          transcript.length > 0
+            ? "A transcript exists and you can start a new local session."
+            : startedAt !== null
+              ? `The last session started at ${formatTime(startedAt)}.`
+              : "The popup is ready to start captions.",
+      };
+    case "missing":
+      return {
+        status: "missing",
+        label: "Service missing",
+        detail: "Start the local ASR service at localhost:8000/asr, then retry.",
+      };
+    case "error":
+      return {
+        status: "error",
+        label: "Setup needed",
+        detail: background?.session.lastError?.message ?? "Restore permissions or the local service, then try again.",
+      };
+    case "empty":
+    default:
+      return {
+        status: "idle",
+        label: "No meeting detected",
+        detail: endedAt !== null ? `The last session ended at ${formatTime(endedAt)}.` : "Open a meeting tab, then press Start captions.",
+      };
+  }
+}
+
+function deriveAction(background: SessionSnapshot | null, mode: PopupMode): { label: string; hint: string } {
   const transcript = background?.transcript ?? [];
 
-  if (phase === "listening" || phase === "connecting" || phase === "reconnecting") {
+  if (mode === "active" || mode === "reconnecting" || mode === "loading") {
     return {
       label: "Stop captions",
-      hint: "End the current session and keep the latest transcript state locally.",
+      hint: "End the current local session and keep the transcript on the device.",
     };
   }
 
-  if (background?.session.health.status === "unreachable") {
+  if (mode === "missing" || mode === "error") {
     return {
-      label: "Start captions",
-      hint: "Start will fail until the local ASR service is running on localhost:8000.",
+      label: "Retry",
+      hint: "Restore the local service or capture permission, then try again.",
     };
   }
 
@@ -349,30 +462,29 @@ function deriveAction(background: SessionSnapshot | null): { label: string; hint
   };
 }
 
-function isCaptionsActivePhase(phase: SessionSnapshot["session"]["phase"]): boolean {
-  return phase === "checking-agent" || phase === "connecting" || phase === "listening" || phase === "reconnecting";
-}
-
 function applySnapshot(background: SessionSnapshot | null): void {
   runtimeState.background = background;
   runtimeState.isRefreshing = false;
 
+  const mode = derivePopupMode(background);
   const service = mapServiceState(background);
-  const captions = mapCaptionState(background);
-  const action = deriveAction(background);
+  const captions = mapCaptionState(background, mode);
+  const banner = deriveBannerState(background, mode);
+  const action = deriveAction(background, mode);
 
   setState({
     title: "Live captions",
     description:
-      service.status === "ready" || captions.status === "active"
+      mode === "active" || mode === "reconnecting"
         ? "The popup is connected and ready for quick control."
-        : service.status === "missing"
+        : mode === "missing"
           ? "The local service is unavailable."
-          : captions.status === "reconnecting"
-            ? "The session is reconnecting."
-            : captions.status === "idle" && captions.label === "Ready"
+          : mode === "error"
+            ? "Caption capture needs attention."
+            : mode === "ready"
               ? "A previous session exists and you can start a new one."
               : "Checking the local session state.",
+    banner,
     service,
     captions,
     actionLabel: action.label,
@@ -383,7 +495,23 @@ function applySnapshot(background: SessionSnapshot | null): void {
 function applyRuntimeUnavailable(): void {
   runtimeState.background = null;
   runtimeState.isRefreshing = false;
-  setState(makeRuntimeUnavailableState());
+  setState({
+    title: "Live captions",
+    description: "The popup could not reach the background worker.",
+    banner: {
+      status: "error",
+      label: "Background unavailable",
+      detail: "Reload the extension, then open the popup again to reconnect.",
+    },
+    service: makeMissingServiceState("Reload the extension, then open the popup again to reconnect."),
+    captions: {
+      status: "error",
+      label: "Unavailable",
+      detail: "The current session state is not available right now.",
+    },
+    actionLabel: "Retry",
+    actionHint: "The background worker is unavailable. Restore the local service, then try again.",
+  });
 }
 
 function setupRuntimeRefresh(): void {
@@ -400,17 +528,42 @@ function setupRuntimeRefresh(): void {
 
 async function refreshFromRuntime(reason: RefreshReason = "manual"): Promise<void> {
   runtimeState.isRefreshing = true;
-  const action = runtimeState.background
-    ? deriveAction(runtimeState.background)
-    : {
-        label: "Start captions",
-        hint: "Wait for the current check to finish.",
-      };
-  setState(makeLoadingState(reason, action));
+  const currentBackground = runtimeState.background;
+  const currentMode = derivePopupMode(currentBackground);
+  const action = deriveAction(currentBackground, currentMode);
 
-  const background = await sendRuntimeMessage<RuntimeResponse>({ type: "session.get", requestId: createRequestId() }).then(
-    (response) => (response?.type === "session.snapshot" ? response.snapshot : null),
-  );
+  setState({
+    title: "Live captions",
+    description:
+      reason === "initial"
+        ? "Checking the extension and local service."
+        : "Refreshing the current session state.",
+    banner: {
+      status: "loading",
+      label: reason === "initial" ? "Loading" : "Refreshing",
+      detail:
+        reason === "initial"
+          ? "Verifying that the popup can reach the local caption pipeline."
+          : "Waiting for the current session state.",
+    },
+    service: {
+      status: "loading",
+      label: "Checking service",
+      detail: "Verifying that the local ASR service is ready.",
+    },
+    captions: {
+      status: "loading",
+      label: "Loading",
+      detail: "Waiting for the current session state.",
+    },
+    actionLabel: action.label,
+    actionHint: action.hint,
+  });
+
+  const background = await sendRuntimeMessage<RuntimeResponse>({
+    type: "session.get",
+    requestId: createRequestId(),
+  }).then((response) => (response?.type === "session.snapshot" ? response.snapshot : null));
 
   if (!background) {
     applyRuntimeUnavailable();
@@ -421,11 +574,29 @@ async function refreshFromRuntime(reason: RefreshReason = "manual"): Promise<voi
 }
 
 async function toggleCaptions(): Promise<void> {
+  if (runtimeState.isActionPending) {
+    return;
+  }
+
   const background = runtimeState.background;
+  const mode = derivePopupMode(background);
   const phase = background?.session.phase ?? "idle";
 
   runtimeState.isActionPending = true;
-  setState(makeLoadingState("action", deriveAction(background)));
+  setState({
+    banner: {
+      status: "loading",
+      label: mode === "active" ? "Stopping" : "Starting",
+      detail: mode === "active" ? "Ending the current local session." : "Starting the local caption session.",
+    },
+    actionLabel: mode === "active" ? "Stop captions" : mode === "missing" || mode === "error" ? "Retry" : "Start captions",
+    actionHint:
+      mode === "missing" || mode === "error"
+        ? "Restore the local service or capture permission, then try again."
+        : mode === "active"
+          ? "End the current local session and keep the transcript on the device."
+          : "Start captions when the meeting tab is ready.",
+  });
 
   try {
     if (isCaptionsActivePhase(phase)) {
@@ -455,14 +626,6 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 primaryActionEl?.addEventListener("click", () => {
-  window.dispatchEvent(
-    new CustomEvent("popup:primary-action", {
-      detail: {
-        serviceStatus: state.service.status,
-        captionStatus: state.captions.status,
-      },
-    }),
-  );
   void toggleCaptions();
 });
 
@@ -482,7 +645,12 @@ declare global {
 
 window.popupShell = {
   setState,
-  getState: () => ({ ...state, service: { ...state.service }, captions: { ...state.captions } }),
+  getState: () => ({
+    ...state,
+    banner: { ...state.banner },
+    service: { ...state.service },
+    captions: { ...state.captions },
+  }),
   refresh: () => refreshFromRuntime("manual"),
 };
 

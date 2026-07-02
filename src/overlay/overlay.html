@@ -7,11 +7,11 @@
     <link rel="stylesheet" href="./overlay.css" />
   </head>
   <body>
-    <main class="overlay-shell" data-shell="overlay" data-overlay-state="idle" data-overlay-theme="idle">
+    <main class="overlay-shell" data-shell="overlay" data-overlay-state="empty" data-overlay-theme="empty">
       <section class="overlay-chip" data-state-chip>
-        <span class="overlay-chip__label" data-state-chip-label>Waiting for meeting audio</span>
+        <span class="overlay-chip__label" data-state-chip-label>No meeting detected</span>
         <span class="overlay-chip__hint" data-state-chip-hint>
-          Open a supported meeting tab to begin local captions.
+          Open a supported meeting tab to start local captions.
         </span>
       </section>
 
@@ -19,13 +19,13 @@
         <header class="overlay-head">
           <div>
             <div class="overlay-kicker">Live captions</div>
-            <h1 data-overlay-title>Waiting for meeting audio</h1>
+            <h1 data-overlay-title>No meeting detected</h1>
           </div>
-          <span class="overlay-status" data-overlay-status aria-live="polite">Listening</span>
+          <span class="overlay-status" data-overlay-status aria-live="polite">Idle</span>
         </header>
 
         <p class="overlay-summary" data-overlay-summary>
-          Captions stay local and update as soon as a meeting is detected.
+          Open a supported meeting tab and press Start captions.
         </p>
 
         <div class="overlay-body" aria-live="polite">
@@ -33,7 +33,7 @@
             Waiting for meeting audio.
           </p>
           <p class="caption-line caption-line--secondary" data-caption-secondary>
-            The overlay stays small until captions begin.
+            The overlay stays compact until a session begins.
           </p>
         </div>
 
