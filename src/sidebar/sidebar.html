@@ -7,50 +7,42 @@
     <link rel="stylesheet" href="./sidebar.css" />
   </head>
   <body>
-    <main class="sidebar-shell" data-shell="sidebar" data-sidebar-state="ready">
+    <main class="sidebar-shell" data-shell="sidebar" data-sidebar-state="loading">
       <header class="sidebar-hero">
         <div class="sidebar-kicker">Kontur Talk Live Captions</div>
         <div class="sidebar-title-row">
           <h1>Transcript</h1>
-          <span class="status-pill status-pill--live" data-status-pill>Captions active</span>
+          <span class="status-pill status-pill--live" data-status-pill>Waiting</span>
         </div>
         <p class="sidebar-copy">
-          Review the current session, browse recent history, and export notes locally.
+          Review the current session, browse saved history, and export notes locally.
         </p>
         <div class="sidebar-meta" aria-label="Session summary">
-          <span class="meta-chip" data-session-range>Today 10:32 - 11:14</span>
+          <span class="meta-chip" data-view-range>Waiting for session</span>
           <span class="meta-chip meta-chip--accent">Local only</span>
-          <span class="meta-chip">Retention: 7 days</span>
+          <span class="meta-chip">Retention: 30 days</span>
         </div>
       </header>
 
       <section class="panel panel--surface" aria-labelledby="live-session-title">
         <div class="panel-head">
           <div>
-            <h2 id="live-session-title">Current session</h2>
-            <p>Transcript segments update here as captions arrive.</p>
+            <h2 id="live-session-title" data-view-title>Current session</h2>
+            <p data-view-copy>Waiting for transcript data.</p>
           </div>
-          <button class="ghost-button" type="button" data-action="focus-latest">Open transcript</button>
+          <button class="ghost-button" type="button" data-action="focus-latest">Latest</button>
         </div>
 
-        <div class="segment-stream" data-transcript-stream aria-live="polite">
-          <article class="segment-card segment-card--partial">
-            <div class="segment-time">10:41</div>
-            <p class="segment-text">We should ship the first version this week.</p>
-          </article>
-          <article class="segment-card">
-            <div class="segment-time">10:43</div>
-            <p class="segment-text">Please keep the export format stable for note taking.</p>
-          </article>
-          <article class="segment-card">
-            <div class="segment-time">10:46</div>
-            <p class="segment-text">The reconnect logic needs to be visible to the user.</p>
-          </article>
+        <div class="panel-meta">
+          <span class="meta-chip" data-view-badge>Waiting</span>
+          <span class="meta-chip meta-chip--accent">Scrolls to latest</span>
         </div>
+
+        <div class="segment-stream" data-transcript-stream aria-live="polite" aria-busy="true"></div>
 
         <div class="empty-state" data-empty-state hidden>
-          <h3>No transcript yet</h3>
-          <p>Start a meeting to collect the first live captions and history entries.</p>
+          <h3 data-empty-title>No transcript yet</h3>
+          <p data-empty-copy>Start captions to capture the first live segment.</p>
         </div>
       </section>
 
@@ -60,25 +52,14 @@
             <h2 id="history-title">History</h2>
             <p>Recent sessions available for review.</p>
           </div>
-          <span class="panel-badge">3 saved</span>
+          <span class="panel-badge" data-history-count>0 saved</span>
         </div>
 
-        <div class="history-list" data-history-list>
-          <button class="history-card history-card--active" type="button" data-session-id="today">
-            <span class="history-date">Today</span>
-            <span class="history-range">10:32 - 11:14</span>
-            <span class="history-preview">Decision recorded, action items captured, export ready.</span>
-          </button>
-          <button class="history-card" type="button" data-session-id="yesterday">
-            <span class="history-date">Yesterday</span>
-            <span class="history-range">14:05 - 14:48</span>
-            <span class="history-preview">Service health checked and reconnect behavior verified.</span>
-          </button>
-          <button class="history-card" type="button" data-session-id="monday">
-            <span class="history-date">Monday</span>
-            <span class="history-range">09:11 - 09:57</span>
-            <span class="history-preview">First-run flow discussed with permission and onboarding notes.</span>
-          </button>
+        <div class="history-list" data-history-list></div>
+
+        <div class="empty-state empty-state--history" data-history-empty hidden>
+          <h3>No history stored</h3>
+          <p>Start captions to save the first session.</p>
         </div>
       </section>
 
@@ -93,7 +74,7 @@
         <div class="action-grid">
           <button class="primary-button" type="button" data-action="copy-transcript">Copy</button>
           <button class="secondary-button" type="button" data-action="export-txt">TXT</button>
-          <button class="secondary-button" type="button" data-action="export-markdown">Markdown</button>
+          <button class="secondary-button" type="button" data-action="export-markdown">MD</button>
         </div>
       </section>
     </main>

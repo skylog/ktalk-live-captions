@@ -1,17 +1,16 @@
 :root {
   color-scheme: dark;
   font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --sidebar-bg: #0c1117;
-  --sidebar-panel: rgba(16, 23, 33, 0.92);
-  --sidebar-panel-soft: rgba(21, 29, 41, 0.86);
-  --sidebar-border: rgba(151, 180, 210, 0.16);
-  --sidebar-border-strong: rgba(151, 180, 210, 0.24);
+  --sidebar-bg: #0b1016;
+  --sidebar-panel: rgba(16, 24, 34, 0.94);
+  --sidebar-panel-soft: rgba(20, 29, 41, 0.88);
+  --sidebar-border: rgba(153, 178, 206, 0.16);
   --sidebar-text: #eef4fb;
-  --sidebar-muted: #98a7b8;
-  --sidebar-accent: #6fd1c6;
-  --sidebar-accent-soft: rgba(111, 209, 198, 0.14);
+  --sidebar-muted: #95a7ba;
+  --sidebar-accent: #74d7c9;
+  --sidebar-accent-soft: rgba(116, 215, 201, 0.14);
   --sidebar-warn: #f2c66c;
-  --sidebar-shadow: 0 24px 64px rgba(3, 8, 15, 0.46);
+  --sidebar-shadow: 0 22px 54px rgba(3, 8, 15, 0.42);
 }
 
 * {
@@ -26,8 +25,8 @@ body {
 
 body {
   background:
-    radial-gradient(circle at top, rgba(111, 209, 198, 0.1), transparent 34%),
-    linear-gradient(180deg, #0a0f15 0%, #0c1117 100%);
+    radial-gradient(circle at top, rgba(116, 215, 201, 0.11), transparent 34%),
+    linear-gradient(180deg, #090d13 0%, #0b1016 100%);
   color: var(--sidebar-text);
 }
 
@@ -39,9 +38,9 @@ textarea {
 
 .sidebar-shell {
   min-height: 100vh;
-  padding: 20px;
+  padding: 18px;
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .sidebar-hero,
@@ -53,8 +52,8 @@ textarea {
 }
 
 .sidebar-hero {
-  border-radius: 22px;
-  padding: 18px 18px 16px;
+  border-radius: 20px;
+  padding: 18px;
 }
 
 .sidebar-kicker {
@@ -83,7 +82,7 @@ textarea {
 .panel p {
   margin: 8px 0 0;
   color: var(--sidebar-muted);
-  line-height: 1.45;
+  line-height: 1.5;
   font-size: 13px;
 }
 
@@ -116,7 +115,7 @@ textarea {
 }
 
 .panel {
-  border-radius: 20px;
+  border-radius: 18px;
   padding: 16px;
 }
 
@@ -167,7 +166,7 @@ textarea {
 
 .primary-button {
   color: #031a18;
-  background: linear-gradient(180deg, #7ef1e0 0%, #56c4b9 100%);
+  background: linear-gradient(180deg, #7ff0df 0%, #57c5ba 100%);
   font-weight: 700;
 }
 
@@ -180,6 +179,10 @@ textarea {
 .segment-stream {
   display: grid;
   gap: 10px;
+  max-height: 310px;
+  overflow: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
 }
 
 .segment-card {
@@ -192,6 +195,11 @@ textarea {
 .segment-card--partial {
   border-color: rgba(111, 209, 198, 0.35);
   background: linear-gradient(180deg, rgba(111, 209, 198, 0.12), rgba(255, 255, 255, 0.03));
+}
+
+.segment-card--focused {
+  border-color: rgba(111, 209, 198, 0.58);
+  box-shadow: 0 0 0 1px rgba(111, 209, 198, 0.22), 0 0 0 6px rgba(111, 209, 198, 0.08);
 }
 
 .segment-time,
@@ -217,9 +225,20 @@ textarea {
   padding: 18px;
 }
 
+.empty-state--history {
+  margin-top: 10px;
+}
+
 .empty-state h3 {
   margin: 0;
   font-size: 15px;
+}
+
+.panel-meta {
+  margin-bottom: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .history-list {
@@ -247,6 +266,16 @@ textarea {
   gap: 4px;
 }
 
+.history-card[aria-current="true"] {
+  box-shadow: 0 0 0 1px rgba(111, 209, 198, 0.18);
+}
+
+.history-summary {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--sidebar-muted);
+}
+
 .action-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -262,6 +291,10 @@ textarea {
   .sidebar-title-row {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .panel-meta {
+    gap: 6px;
   }
 
   .action-grid {

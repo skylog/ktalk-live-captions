@@ -73,6 +73,15 @@ type ContentBridgeRequest =
   | { type: "ktalk.content.markUnavailable"; reason?: string }
   | { type: "ktalk.content.reset"; reason?: string };
 
+type ContentSnapshotMessage = {
+  type: "ktalk.content.snapshot";
+  snapshot: ContentScriptSnapshot;
+};
+
+type UiBridgeRequest = {
+  type: "ktalk.ui.openSidebar";
+};
+
 interface ContentSessionSnapshot {
   sessionId: string | null;
   meetingId: string | null;
@@ -119,6 +128,9 @@ interface ChromeTabsAPI {
     },
     callback: (tabs: Array<{ id?: number; windowId?: number; url?: string }>) => void,
   ): void;
+  onRemoved: {
+    addListener(callback: (tabId: number, removeInfo: { windowId: number; isWindowClosing: boolean }) => void): void;
+  };
   create(
     createProperties: {
       active?: boolean;
@@ -140,32 +152,11 @@ interface ChromeTabsAPI {
   ): void;
 }
 
-interface ChromeWindowsAPI {
-  create(
-    createData: {
-      focused?: boolean;
-      height?: number;
-      type?: "normal" | "popup";
-      url?: string;
-      width?: number;
-    },
-    callback?: (window: { id?: number } | undefined) => void,
-  ): void;
-  update(
-    windowId: number,
-    updateInfo: {
-      focused?: boolean;
-    },
-    callback?: (window: { id?: number } | undefined) => void,
-  ): void;
-}
-
 interface ChromeExtensionAPI {
   action: ChromeActionAPI;
   commands: ChromeCommandsAPI;
   runtime: ChromeRuntimeAPI;
   tabs: ChromeTabsAPI;
-  windows: ChromeWindowsAPI;
   storage: {
     local: ChromeStorageArea;
   };
@@ -279,6 +270,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function getSenderTabId(sender: unknown): number | null {
+  if (!isRecord(sender) || !isRecord(sender.tab)) {
+    return null;
+  }
+
+  return typeof sender.tab.id === "number" ? sender.tab.id : null;
+}
+
 function normalizeUiRoutingState(value: unknown): UiRoutingState {
   if (!isRecord(value)) {
     return {
@@ -295,6 +294,14 @@ function isContentBridgeMessage(message: unknown): message is ContentBridgeReque
   return isRecord(message) && typeof message.type === "string" && message.type.startsWith("ktalk.content.");
 }
 
+function isContentSnapshotMessage(message: unknown): message is ContentSnapshotMessage {
+  return (
+    isRecord(message) &&
+    message.type === "ktalk.content.snapshot" &&
+    isContentScriptSnapshot(message.snapshot)
+  );
+}
+
 function isUiBroadcastMessage(message: unknown): message is UiBroadcastMessage {
   return isRecord(message) && message.type === "ktalk.ui.refresh";
 }
@@ -308,7 +315,7 @@ function getActiveTabId(): Promise<number | null> {
 }
 
 async function sendContentBridgeMessage<T>(message: ContentBridgeRequest): Promise<T | null> {
-  const tabId = await getActiveTabId();
+  const tabId = sessionState.tabId ?? (await getActiveTabId());
   if (tabId === null) {
     return null;
   }
@@ -448,7 +455,9 @@ async function probeLocalAsrHealth(reason = "health-probe"): Promise<ServiceHeal
     const response = await fetch(LOCAL_ASR_HTTP_URL, {
       method: "GET",
       cache: "no-store",
+      redirect: "error",
       credentials: "omit",
+      referrerPolicy: "no-referrer",
       signal: controller.signal,
     });
     const latencyMs = now() - checkedAt;
@@ -770,14 +779,6 @@ async function focusTab(tab: { id?: number; windowId?: number }): Promise<void> 
       });
     });
   }
-
-  if (typeof tab.windowId === "number") {
-    await new Promise<void>((resolve) => {
-      chrome.windows.update(tab.windowId as number, { focused: true }, () => {
-        resolve();
-      });
-    });
-  }
 }
 
 async function queryTabsByUrl(url: string): Promise<Array<{ id?: number; windowId?: number; url?: string }>> {
@@ -809,36 +810,7 @@ async function openOnboardingSurface(): Promise<void> {
 }
 
 async function openPopupSurface(): Promise<void> {
-  const popupUrl = getPopupPageUrl();
-  const tabs = await queryTabsByUrl(popupUrl);
-  const existingTab = tabs[0];
-
-  if (existingTab) {
-    await focusTab(existingTab);
-    return;
-  }
-
-  await new Promise<void>((resolve) => {
-    chrome.windows.create(
-      {
-        url: popupUrl,
-        type: "popup",
-        focused: true,
-        width: 420,
-        height: 720,
-      },
-      (window) => {
-        if (chrome.runtime.lastError || !window) {
-          chrome.tabs.create({ url: popupUrl, active: true }, () => {
-            resolve();
-          });
-          return;
-        }
-
-        resolve();
-      },
-    );
-  });
+  await openPageInTab(getPopupPageUrl());
 }
 
 async function openSidebarSurface(): Promise<void> {
@@ -879,6 +851,16 @@ async function handleCommand(command: string): Promise<void> {
       await toggleCaptionsFromShortcut();
       break;
     case "open-transcript":
+      await openSidebarSurface();
+      break;
+    default:
+      break;
+  }
+}
+
+async function handleUiBridgeRequest(message: UiBridgeRequest): Promise<void> {
+  switch (message.type) {
+    case "ktalk.ui.openSidebar":
       await openSidebarSurface();
       break;
     default:
@@ -976,6 +958,7 @@ export async function startSession(seed: SessionSeed = {}): Promise<SessionSnaps
   await bootstrapServiceWorker();
 
   const timestamp = typeof seed.startedAt === "number" ? seed.startedAt : now();
+  const activeTabId = typeof seed.tabId === "number" ? seed.tabId : await getActiveTabId();
   const sessionId = typeof seed.sessionId === "string" && seed.sessionId.length > 0
     ? seed.sessionId
     : createId();
@@ -988,7 +971,7 @@ export async function startSession(seed: SessionSeed = {}): Promise<SessionSnaps
       ...createIdleSessionState(),
       sessionId,
       meetingId,
-      tabId: typeof seed.tabId === "number" ? seed.tabId : null,
+      tabId: activeTabId,
       source: isCaptureSource(seed.source) ? seed.source : null,
       phase: "checking-agent",
       transport: "connecting",
@@ -1242,8 +1225,32 @@ chrome.commands.onCommand.addListener((command) => {
   void handleCommand(command);
 });
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.tabs.onRemoved.addListener((tabId) => {
+  if (sessionState.tabId !== tabId || !isCaptionsActivePhase(sessionState.phase)) {
+    return;
+  }
+
+  void endSession({
+    type: "session.end",
+    reason: "meeting-tab-closed",
+  });
+});
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (isUiBroadcastMessage(message)) {
+    return false;
+  }
+
+  if (isContentSnapshotMessage(message)) {
+    const nextState = mapContentScriptSnapshotToSessionState(message.snapshot);
+    transitionSessionState({
+      ...nextState,
+      tabId: getSenderTabId(sender) ?? sessionState.tabId,
+      updatedAt: now(),
+    });
+    void persistState();
+    notifyUiRefresh();
+    sendResponse(makeSnapshot());
     return false;
   }
 
@@ -1251,6 +1258,28 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     void sendContentBridgeMessage(message).then((response) => {
       sendResponse(response);
     });
+    return true;
+  }
+
+  if (isRecord(message) && typeof message.type === "string" && message.type.startsWith("ktalk.ui.")) {
+    void handleUiBridgeRequest(message as UiBridgeRequest)
+      .then(() => {
+        sendResponse({
+          ok: true,
+          requestId: null,
+          type: "protocol.pong",
+          protocolVersion: PROTOCOL_VERSION,
+        } satisfies RuntimeResponse);
+      })
+      .catch((error: unknown) => {
+        const messageText = error instanceof Error ? error.message : "Unknown worker failure";
+        sendResponse({
+          ok: false,
+          requestId: null,
+          type: "error",
+          error: createProtocolError("unknown", messageText, true),
+        } satisfies RuntimeResponse);
+      });
     return true;
   }
 
