@@ -362,10 +362,10 @@ async function runChecks(): Promise<void> {
     if (typeof chrome !== "undefined" && chrome.runtime?.getManifest) {
       const manifest = chrome.runtime.getManifest();
       const optionsUi = manifest.options_ui?.page ?? "src/onboarding/onboarding.html";
-      manifestNoteEl.textContent = `Reopen this page from the extension options entry at ${optionsUi} if you need to rerun setup later.`;
+      manifestNoteEl.textContent = `Reopen this page from the extension options entry at ${optionsUi} if you need to rerun setup or compare a rollback locally.`;
     } else {
       manifestNoteEl.textContent =
-        "Reopen this page from the extension after the browser support issue is resolved.";
+        "Reopen this page from the extension after the browser support issue is resolved, then compare diagnostics before changing builds.";
     }
   }
 }

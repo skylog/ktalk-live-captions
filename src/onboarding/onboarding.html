@@ -16,7 +16,9 @@
             This setup screen checks three things locally: whether the ASR
             service is reachable on <strong>localhost:8000</strong>, whether
             the browser exposes the capture APIs the extension needs, and
-            whether the required permissions are already granted.
+            whether the required permissions are already granted. If the latest
+            build regressed, keep the result here and open diagnostics before
+            you switch releases.
           </p>
         </div>
 
@@ -136,7 +138,8 @@
           <div class="footer-card__label">Next step</div>
           <p>
             After the service check passes, open the popup and start captions
-            from a supported Kontur Talk meeting tab.
+            from a supported Kontur Talk meeting tab. If you need a rollback
+            trail, open diagnostics first and keep the snapshot local.
           </p>
         </div>
         <div class="footer-card__note" id="manifest-note"></div>

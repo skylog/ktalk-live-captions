@@ -130,7 +130,7 @@ const ERROR_CATALOG: ReadonlyArray<ErrorCatalogEntry> = [
     description:
       "The local ASR service did not answer the health probe or returned an unavailable state.",
     recovery:
-      "Start the service on localhost:8000, then refresh diagnostics.",
+      "Start the service on localhost:8000, then refresh diagnostics. If this began after a release update, compare the runtime version above before restoring the previous local build.",
     severity: "error",
   },
   {
@@ -139,7 +139,7 @@ const ERROR_CATALOG: ReadonlyArray<ErrorCatalogEntry> = [
     description:
       "Chrome blocked one or more capture permissions required for the local audio pipeline.",
     recovery:
-      "Reload the extension, then grant the capture prompt again.",
+      "Reload the extension, then grant the capture prompt again. If the issue is limited to one release, compare this snapshot with the previous build before retrying.",
     severity: "error",
   },
   {
@@ -148,7 +148,7 @@ const ERROR_CATALOG: ReadonlyArray<ErrorCatalogEntry> = [
     description:
       "The browser could not open the chosen audio source or build the capture stream.",
     recovery:
-      "Keep the meeting tab active, confirm audio is playing, and try capture again.",
+      "Keep the meeting tab active, confirm audio is playing, and try capture again. If the failure only started after an update, keep the snapshot for rollback.",
     severity: "warning",
   },
   {
@@ -157,7 +157,7 @@ const ERROR_CATALOG: ReadonlyArray<ErrorCatalogEntry> = [
     description:
       "The transport disconnected while captions were active or while the app was trying to reconnect.",
     recovery:
-      "Wait for the local service to recover, then restart captions.",
+      "Wait for the local service to recover, then restart captions. If the loop started after an update, revert to the previous local package and retest.",
     severity: "warning",
   },
   {
@@ -166,7 +166,7 @@ const ERROR_CATALOG: ReadonlyArray<ErrorCatalogEntry> = [
     description:
       "The background worker received a message shape it did not recognize or could not validate.",
     recovery:
-      "Refresh the extension to reload the current bundle.",
+      "Refresh the extension to reload the current bundle. If the release changed recently, compare the protocol version above with the prior build.",
     severity: "warning",
   },
   {
@@ -175,7 +175,7 @@ const ERROR_CATALOG: ReadonlyArray<ErrorCatalogEntry> = [
     description:
       "The worker reported an error that does not match a known recovery path.",
     recovery:
-      "Copy the snapshot, inspect local logs, then retry the session once.",
+      "Copy the snapshot, inspect local logs, then retry the session once. If the problem only appears on the latest build, roll back to the previous local package.",
     severity: "unknown",
   },
 ];
@@ -521,7 +521,7 @@ async function probeService(): Promise<ServiceProbeState> {
   return {
     status: "error",
     label: "Blocked",
-    detail: "The local ASR service could not be checked through the runtime bridge.",
+    detail: "The local ASR service could not be checked through the runtime bridge. Open diagnostics from the extension, then start WhisperLiveKit locally.",
     endpoint: LOCAL_ASR_HTTP_URL,
     checkedAt: null,
     latencyMs: null,
@@ -874,7 +874,7 @@ function render(elements: DiagnosticsElements): void {
   );
 
   elements.note.textContent =
-    "The snapshot stays local to this browser profile. No telemetry or remote analytics are sent from this page.";
+    "The snapshot stays local to this browser profile. No telemetry or remote analytics are sent from this page, and it is the first artifact to compare before a rollback.";
 
   renderCatalog(elements);
 
