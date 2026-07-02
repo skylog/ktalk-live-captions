@@ -15,34 +15,39 @@
           <span class="status-pill status-pill--live" data-status-pill>Waiting</span>
         </div>
         <p class="sidebar-copy">
-          Review the current session, browse saved history, and export notes locally.
+          Review the live session, browse searchable history, and export notes locally.
         </p>
         <div class="sidebar-meta" aria-label="Session summary">
           <span class="meta-chip" data-view-range>Waiting for session</span>
           <span class="meta-chip meta-chip--accent">Local only</span>
           <span class="meta-chip">Retention: 30 days</span>
+          <span class="meta-chip">Searchable history</span>
         </div>
       </header>
 
       <section class="panel panel--surface" aria-labelledby="live-session-title">
         <div class="panel-head">
           <div>
-            <h2 id="live-session-title" data-view-title>Current session</h2>
-            <p data-view-copy>Waiting for transcript data.</p>
+            <h2 id="live-session-title" data-view-title>Transcript browser</h2>
+            <p data-view-copy>Select a saved session below or keep the live session in view.</p>
           </div>
-          <button class="ghost-button" type="button" data-action="focus-latest">Latest</button>
+          <div class="panel-head-actions">
+            <button class="ghost-button" type="button" data-action="show-live-session">Live</button>
+            <button class="ghost-button" type="button" data-action="focus-latest">Latest</button>
+          </div>
         </div>
 
         <div class="panel-meta">
-          <span class="meta-chip" data-view-badge>Waiting</span>
-          <span class="meta-chip meta-chip--accent">Scrolls to latest</span>
+          <span class="meta-chip" data-view-mode>Live session</span>
+          <span class="meta-chip" data-view-source>Source: Unknown</span>
+          <span class="meta-chip meta-chip--accent" data-view-export>TXT + Markdown ready</span>
         </div>
 
         <div class="segment-stream" data-transcript-stream aria-live="polite" aria-busy="true"></div>
 
         <div class="empty-state" data-empty-state hidden>
-          <h3 data-empty-title>No transcript yet</h3>
-          <p data-empty-copy>Start captions to capture the first live segment.</p>
+          <h3>No transcript yet</h3>
+          <p>Start captions or select a saved session to review the first segment.</p>
         </div>
       </section>
 
@@ -54,6 +59,19 @@
           </div>
           <span class="panel-badge" data-history-count>0 saved</span>
         </div>
+
+        <div class="search-row">
+          <label class="search-field" aria-label="Search history">
+            <span>Search history</span>
+            <input
+              type="search"
+              placeholder="Session ID, meeting ID, or transcript text"
+              data-history-query
+            />
+          </label>
+        </div>
+
+        <p class="panel-hint">Search runs locally against saved transcripts only.</p>
 
         <div class="history-list" data-history-list></div>
 
@@ -67,7 +85,7 @@
         <div class="panel-head">
           <div>
             <h2 id="export-title">Export</h2>
-            <p>Copy the transcript or download a text format.</p>
+            <p>Copy the selected transcript or download a metadata-rich text format.</p>
           </div>
         </div>
 
@@ -76,6 +94,7 @@
           <button class="secondary-button" type="button" data-action="export-txt">TXT</button>
           <button class="secondary-button" type="button" data-action="export-markdown">MD</button>
         </div>
+        <p class="panel-hint">TXT stays the fallback baseline. Markdown keeps metadata for downstream tools.</p>
       </section>
     </main>
 

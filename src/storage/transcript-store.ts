@@ -471,6 +471,65 @@ function sortByRecency(records: TranscriptSessionRecord[]): TranscriptSessionRec
   });
 }
 
+function normalizeSearchQuery(query: string): string {
+  return normalizeText(query).toLowerCase();
+}
+
+function buildSearchCorpus(record: TranscriptSessionRecord): string[] {
+  const transcriptText = record.transcript.map((segment) => normalizeText(segment.text)).filter(Boolean);
+  const source = record.source ?? "";
+  const metadata = record.exportMetadata
+    ? [
+        String(record.exportMetadata.generatedAt),
+        record.exportMetadata.sessionId,
+        record.exportMetadata.meetingId,
+        record.exportMetadata.source ?? "",
+      ]
+    : [];
+
+  return [record.sessionId, record.meetingId, source, ...metadata, ...transcriptText]
+    .map((entry) => normalizeText(entry).toLowerCase())
+    .filter((entry) => entry.length > 0);
+}
+
+function scoreTranscriptRecord(record: TranscriptSessionRecord, query: string): number {
+  const corpus = buildSearchCorpus(record);
+  let score = 0;
+
+  for (const entry of corpus) {
+    const matchIndex = entry.indexOf(query);
+    if (matchIndex === -1) {
+      continue;
+    }
+
+    score += 100;
+    score += Math.max(0, 40 - Math.min(matchIndex, 40));
+    if (entry === query) {
+      score += 50;
+    }
+  }
+
+  return score;
+}
+
+function sortSearchResults(
+  left: { record: TranscriptSessionRecord; score: number },
+  right: { record: TranscriptSessionRecord; score: number },
+): number {
+  if (left.score !== right.score) {
+    return right.score - left.score;
+  }
+
+  const leftStamp = left.record.updatedAt ?? left.record.endedAt ?? left.record.startedAt ?? 0;
+  const rightStamp = right.record.updatedAt ?? right.record.endedAt ?? right.record.startedAt ?? 0;
+
+  if (leftStamp !== rightStamp) {
+    return rightStamp - leftStamp;
+  }
+
+  return left.record.sessionId.localeCompare(right.record.sessionId);
+}
+
 function normalizeState(state: unknown, clock: () => number): TranscriptStoreState {
   if (!isRecord(state) || state.version !== 1 || !Array.isArray(state.sessions)) {
     return {
@@ -734,6 +793,26 @@ export class TranscriptStore {
     return sortByRecency(state.sessions).slice(0, limit).map(cloneTranscriptRecord);
   }
 
+  async search(query: string, options: TranscriptLookupOptions = {}): Promise<TranscriptSessionRecord[]> {
+    const state = this.pruneState(await this.readState());
+    const normalizedQuery = normalizeSearchQuery(query);
+
+    if (normalizedQuery.length === 0) {
+      return this.listRecent(options);
+    }
+
+    const limit = typeof options.limit === "number" && options.limit > 0 ? options.limit : 12;
+    return sortByRecency(state.sessions)
+      .map((record) => ({
+        record,
+        score: scoreTranscriptRecord(record, normalizedQuery),
+      }))
+      .filter((entry) => entry.score > 0)
+      .sort(sortSearchResults)
+      .slice(0, limit)
+      .map((entry) => cloneTranscriptRecord(entry.record));
+  }
+
   async removeBySessionId(sessionId: string): Promise<boolean> {
     const state = await this.readState();
     const nextSessions = state.sessions.filter((entry) => entry.sessionId !== sessionId);
@@ -782,6 +861,11 @@ export const getTranscriptByMeetingId = (
 export const listRecentTranscripts = (
   options?: TranscriptLookupOptions,
 ): Promise<TranscriptSessionRecord[]> => transcriptStore.listRecent(options);
+
+export const searchTranscripts = (
+  query: string,
+  options?: TranscriptLookupOptions,
+): Promise<TranscriptSessionRecord[]> => transcriptStore.search(query, options);
 
 export const removeTranscriptBySessionId = (sessionId: string): Promise<boolean> =>
   transcriptStore.removeBySessionId(sessionId);
