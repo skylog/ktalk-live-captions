@@ -35,7 +35,7 @@ const discoveryTimeoutMs = 2000;
 const defaultSnapshot: InstallerSnapshot = {
   phase: "checking",
   endpoint: LOCAL_ASR_HTTP_URL,
-  detail: "Waiting for the first discovery pass.",
+  detail: "Waiting for the first local check.",
   checkedAt: null,
   latencyMs: null,
   reachable: null,
@@ -120,11 +120,11 @@ function describeLatency(state: InstallerSnapshot): string {
 
 function describeSupportNote(state: InstallerSnapshot): string {
   if (state.phase === "ready") {
-    return "The local endpoint answered. If WhisperLiveKit restarts later, run discovery again from this page.";
+    return "The local endpoint answered. If WhisperLiveKit restarts later, run the check again from this page.";
   }
 
   if (state.phase === "missing") {
-    return "Start WhisperLiveKit on this machine, confirm localhost:8000 is free, then retry discovery here.";
+    return "Start WhisperLiveKit on this machine, then check localhost:8000/asr again.";
   }
 
   return "Discovery only probes localhost:8000/asr. No cloud endpoints are contacted.";
@@ -132,7 +132,7 @@ function describeSupportNote(state: InstallerSnapshot): string {
 
 function describeFooterNote(state: InstallerSnapshot): string {
   if (state.phase === "ready") {
-    return "Discovery is complete and the extension can stay on-device.";
+    return "Ready to continue. Open the popup to start captions.";
   }
 
   if (state.phase === "missing") {
@@ -221,7 +221,7 @@ function render(): void {
   if (state.phase === "ready") {
     setText(
       elements.pathDetail,
-      "The local ASR service is reachable. The app can continue without any cloud dependency.",
+      "The local ASR service is reachable. Open the popup to start captions without leaving the local path.",
     );
     setText(elements.supportNote, describeSupportNote(state));
     setText(
@@ -235,7 +235,7 @@ function render(): void {
   } else if (state.phase === "missing") {
     setText(
       elements.pathDetail,
-      "The local ASR service is still missing. Start WhisperLiveKit on this machine, then run discovery again.",
+      "The local ASR service is still missing. Start WhisperLiveKit on this machine, then press Check local service again.",
     );
     setText(elements.supportNote, describeSupportNote(state));
     setText(
@@ -265,9 +265,9 @@ function render(): void {
   setText(
     elements.telemetry,
     state.phase === "ready"
-      ? "Local service discovered successfully."
+      ? "Local service discovered successfully. Open the popup to continue."
       : state.phase === "missing"
-        ? "Discovery completed with no reachable local service."
+        ? "Discovery completed with no reachable local service. Start WhisperLiveKit and try again."
         : "Probing localhost for a local ASR service.",
   );
 }
@@ -307,8 +307,8 @@ export async function probeLocalService(endpoint: string = LOCAL_ASR_HTTP_URL): 
       checkedAt: Date.now(),
       latencyMs: null,
       detail: timedOut
-        ? "The local ASR service did not answer before the timeout. Start WhisperLiveKit locally and retry discovery."
-        : "The local ASR service could not be reached. Start WhisperLiveKit locally and retry discovery.",
+        ? "The local ASR service did not answer before the timeout. Start WhisperLiveKit locally and check again."
+        : "The local ASR service could not be reached. Start WhisperLiveKit locally and check again.",
       endpoint: localEndpoint,
     };
   } finally {

@@ -194,6 +194,11 @@ textarea {
   background: linear-gradient(180deg, rgba(111, 209, 198, 0.12), rgba(255, 255, 255, 0.03));
 }
 
+.segment-card--focused {
+  border-color: rgba(111, 209, 198, 0.58);
+  box-shadow: 0 0 0 1px rgba(111, 209, 198, 0.22), 0 0 0 6px rgba(111, 209, 198, 0.08);
+}
+
 .segment-time,
 .history-date,
 .history-range {

@@ -167,24 +167,19 @@
             </div>
           </section>
 
-          <footer class="form-footer" aria-label="Recovery actions">
-            <div class="form-footer__copy">
-              <h2>Recovery</h2>
-              <p id="settings-save-note" role="status" aria-live="polite" aria-atomic="true">
-                Changes save locally in this browser profile. If something looks wrong, restore defaults, rerun onboarding, or open diagnostics.
-              </p>
-            </div>
-            <div class="form-footer__actions">
-              <button class="secondary-button" type="button" id="reset-settings">
-                Restore defaults
-              </button>
-              <button class="secondary-button" type="button" id="rerun-onboarding">
-                Rerun onboarding
-              </button>
-              <button class="secondary-button" type="button" id="open-diagnostics">
-                Open diagnostics
-              </button>
-            </div>
+          <footer class="form-footer">
+            <button class="secondary-button" type="button" id="reset-settings">
+              Reset defaults
+            </button>
+            <button class="secondary-button" type="button" id="rerun-onboarding">
+              Rerun onboarding
+            </button>
+            <button class="secondary-button" type="button" id="open-diagnostics">
+              Open diagnostics
+            </button>
+            <p id="settings-save-note" role="status" aria-live="polite" aria-atomic="true">
+              Changes save locally in this browser profile. Use the buttons above to rerun setup or inspect recovery details.
+            </p>
           </footer>
         </form>
 
@@ -237,7 +232,7 @@
               </div>
               <div>
                 <dt>Export details</dt>
-                <dd id="export-details-value">Export: TXT, timestamps on, speaker labels off</dd>
+                <dd id="export-details-value">timestamps on / speaker labels off</dd>
               </div>
             </dl>
           </section>

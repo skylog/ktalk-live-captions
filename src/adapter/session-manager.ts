@@ -1,14 +1,9 @@
 import type { MeetingDetectionSnapshot } from '../content/meeting-detection';
+import type { SessionPhase as ProtocolSessionPhase } from '../shared/protocol';
 
-export type SessionPhase =
-  | 'idle'
-  | 'checking-agent'
-  | 'connecting'
-  | 'listening'
-  | 'reconnecting'
-  | 'finished';
+export type SessionPhase = ProtocolSessionPhase;
 
-export interface SessionSnapshot {
+export interface SessionManagerSnapshot {
   sessionId: string | null;
   meetingId: string | null;
   phase: SessionPhase;
@@ -27,25 +22,25 @@ export interface SessionSnapshot {
 export interface SessionManagerOptions {
   now?: () => number;
   sessionIdFactory?: () => string;
-  onChange?: (snapshot: SessionSnapshot) => void;
+  onChange?: (snapshot: SessionManagerSnapshot) => void;
   reconnectMaxAttempts?: number;
   reconnectBaseDelayMs?: number;
   reconnectMaxDelayMs?: number;
 }
 
 export interface SessionManager {
-  getSnapshot(): SessionSnapshot;
-  subscribe(listener: (snapshot: SessionSnapshot) => void): () => void;
-  updateDetection(detection: MeetingDetectionSnapshot): SessionSnapshot;
-  beginCheckingAgent(reason?: string): SessionSnapshot;
-  markAgentReady(reason?: string): SessionSnapshot;
-  beginConnecting(reason?: string): SessionSnapshot;
-  markTransportReady(reason?: string): SessionSnapshot;
-  markListening(reason?: string): SessionSnapshot;
-  markReconnecting(reason?: string): SessionSnapshot;
-  markUnavailable(reason?: string): SessionSnapshot;
-  stop(reason?: string): SessionSnapshot;
-  reset(): SessionSnapshot;
+  getSnapshot(): SessionManagerSnapshot;
+  subscribe(listener: (snapshot: SessionManagerSnapshot) => void): () => void;
+  updateDetection(detection: MeetingDetectionSnapshot): SessionManagerSnapshot;
+  beginCheckingAgent(reason?: string): SessionManagerSnapshot;
+  markAgentReady(reason?: string): SessionManagerSnapshot;
+  beginConnecting(reason?: string): SessionManagerSnapshot;
+  markTransportReady(reason?: string): SessionManagerSnapshot;
+  markListening(reason?: string): SessionManagerSnapshot;
+  markReconnecting(reason?: string): SessionManagerSnapshot;
+  markUnavailable(reason?: string): SessionManagerSnapshot;
+  stop(reason?: string): SessionManagerSnapshot;
+  reset(): SessionManagerSnapshot;
 }
 
 const DEFAULT_PHASE: SessionPhase = 'idle';
@@ -57,14 +52,16 @@ function createSessionId(now: () => number): string {
   return `ktalk-${now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function cloneSnapshot(snapshot: SessionSnapshot): SessionSnapshot {
+export type SessionSnapshot = SessionManagerSnapshot;
+
+function cloneSnapshot(snapshot: SessionManagerSnapshot): SessionManagerSnapshot {
   return {
     ...snapshot,
     detection: snapshot.detection ? { ...snapshot.detection, reasons: [...snapshot.detection.reasons], signals: [...snapshot.detection.signals] } : null,
   };
 }
 
-function createInitialSnapshot(now: () => number): SessionSnapshot {
+function createInitialSnapshot(now: () => number): SessionManagerSnapshot {
   return {
     sessionId: null,
     meetingId: null,
@@ -88,10 +85,10 @@ export function createSessionManager(options: SessionManagerOptions = {}): Sessi
   const reconnectMaxAttempts = options.reconnectMaxAttempts ?? DEFAULT_RECONNECT_MAX_ATTEMPTS;
   const reconnectBaseDelayMs = options.reconnectBaseDelayMs ?? DEFAULT_RECONNECT_BASE_DELAY_MS;
   const reconnectMaxDelayMs = options.reconnectMaxDelayMs ?? DEFAULT_RECONNECT_MAX_DELAY_MS;
-  const listeners = new Set<(snapshot: SessionSnapshot) => void>();
+  const listeners = new Set<(snapshot: SessionManagerSnapshot) => void>();
   let snapshot = createInitialSnapshot(now);
 
-  function emit(next: SessionSnapshot): SessionSnapshot {
+  function emit(next: SessionManagerSnapshot): SessionManagerSnapshot {
     snapshot = cloneSnapshot(next);
     options.onChange?.(cloneSnapshot(snapshot));
     for (const listener of listeners) {
@@ -100,7 +97,7 @@ export function createSessionManager(options: SessionManagerOptions = {}): Sessi
     return cloneSnapshot(snapshot);
   }
 
-  function update(partial: Partial<SessionSnapshot>, reason: string | null = null): SessionSnapshot {
+  function update(partial: Partial<SessionManagerSnapshot>, reason: string | null = null): SessionManagerSnapshot {
     return emit({
       ...snapshot,
       ...partial,
@@ -122,7 +119,11 @@ export function createSessionManager(options: SessionManagerOptions = {}): Sessi
     return snapshot.sessionId ?? createId();
   }
 
-  function setPhase(phase: SessionPhase, reason: string | null = null, extra: Partial<SessionSnapshot> = {}): SessionSnapshot {
+  function setPhase(
+    phase: SessionPhase,
+    reason: string | null = null,
+    extra: Partial<SessionManagerSnapshot> = {},
+  ): SessionManagerSnapshot {
     return update(
       {
         ...extra,
@@ -133,7 +134,7 @@ export function createSessionManager(options: SessionManagerOptions = {}): Sessi
   }
 
   function resetReconnectBudget(): Pick<
-    SessionSnapshot,
+    SessionManagerSnapshot,
     "reconnectAttempts" | "reconnectDelayMs" | "reconnectBudgetExceeded"
   > {
     return {
@@ -147,7 +148,7 @@ export function createSessionManager(options: SessionManagerOptions = {}): Sessi
     getSnapshot() {
       return cloneSnapshot(snapshot);
     },
-    subscribe(listener: (snapshot: SessionSnapshot) => void) {
+    subscribe(listener: (snapshot: SessionManagerSnapshot) => void) {
       listeners.add(listener);
       listener(cloneSnapshot(snapshot));
       return () => listeners.delete(listener);
