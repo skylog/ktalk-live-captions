@@ -34,25 +34,33 @@ function deriveOverlayState(session: SessionSnapshot | null): OverlayState {
     return "missing";
   }
 
+  if (session.session.phase === "reconnecting") {
+    return "reconnecting";
+  }
+
+  const hasTranscript = session.transcript.length > 0;
+  const activePhase =
+    session.session.phase === "checking-agent" ||
+    session.session.phase === "connecting" ||
+    session.session.phase === "listening";
+
   if (
     session.session.health.status === "unreachable" ||
     session.session.lastError?.code === "service-unreachable" ||
     session.session.lastError?.code === "permission-denied" ||
     session.session.lastError?.code === "capture-failed"
   ) {
-    return "missing";
+    if (activePhase || !hasTranscript) {
+      return "missing";
+    }
   }
 
-  const phase = session?.session.phase ?? "idle";
-
-  switch (phase) {
+  switch (session.session.phase) {
     case "connecting":
     case "checking-agent":
       return "reconnecting";
     case "listening":
       return "listening";
-    case "reconnecting":
-      return "reconnecting";
     case "finished":
       return "idle";
     case "idle":

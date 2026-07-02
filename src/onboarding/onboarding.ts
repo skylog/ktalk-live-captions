@@ -114,11 +114,17 @@ async function checkService(): Promise<ServiceCheckResult> {
 }
 
 async function checkBrowserSupport(): Promise<SupportCheckResult> {
-  if (typeof chrome === "undefined" || !chrome.runtime || !chrome.permissions || !chrome.tabs) {
+  if (
+    typeof chrome === "undefined" ||
+    !chrome.runtime ||
+    !chrome.permissions ||
+    !chrome.tabs ||
+    !chrome.tabCapture
+  ) {
     return {
       state: "unsupported",
       detail:
-        "This browser does not expose the extension runtime, permissions, and tabs APIs that live captions rely on.",
+        "This browser does not expose the runtime, permissions, tabs, and tabCapture APIs that live captions rely on.",
       recovery:
         "Use a Chromium-based browser with extension API support, then reopen this onboarding page from the extension.",
     };
