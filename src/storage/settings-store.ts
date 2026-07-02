@@ -70,6 +70,18 @@ function now(): number {
   return Date.now();
 }
 
+function cloneStoredValue<T>(value: T): T {
+  const globalScope = globalThis as typeof globalThis & {
+    structuredClone?: <U>(input: U) => U;
+  };
+
+  if (typeof globalScope.structuredClone === "function") {
+    return globalScope.structuredClone(value);
+  }
+
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -86,7 +98,8 @@ function createStorageAdapter(): StoreAdapter {
   return {
     async read<T>(key: string): Promise<T | null> {
       if (!area) {
-        return (memory.get(key) as T | undefined) ?? null;
+        const value = memory.get(key);
+        return value === undefined ? null : cloneStoredValue(value as T);
       }
 
       return new Promise((resolve, reject) => {
@@ -101,18 +114,18 @@ function createStorageAdapter(): StoreAdapter {
           }
 
           const value = items[key];
-          resolve((value as T | undefined) ?? null);
+          resolve(value === undefined ? null : cloneStoredValue(value as T));
         });
       });
     },
     async write<T>(key: string, value: T): Promise<void> {
       if (!area) {
-        memory.set(key, value as unknown);
+        memory.set(key, cloneStoredValue(value));
         return;
       }
 
       return new Promise((resolve, reject) => {
-        area.set({ [key]: value as unknown }, () => {
+        area.set({ [key]: cloneStoredValue(value) as unknown }, () => {
           const runtime = (globalThis as typeof globalThis & {
             chrome?: { runtime?: { lastError?: { message?: string } } };
           }).chrome?.runtime;
@@ -157,7 +170,12 @@ function makeDefaultSettings(): AppSettings {
   };
 }
 
-export const defaultSettings: AppSettings = makeDefaultSettings();
+export const defaultSettings: AppSettings = Object.freeze({
+  ...makeDefaultSettings(),
+  exportDefaults: Object.freeze({
+    ...makeDefaultSettings().exportDefaults,
+  }),
+});
 
 function normalizeCaptureSource(value: unknown): CaptureSource {
   return value === "microphone" ? "microphone" : "tab-audio";
@@ -204,26 +222,26 @@ function makeState(settings: AppSettings, updatedAt = now()): StoredSettingsStat
   };
 }
 
-function normalizeState(value: unknown): StoredSettingsState {
+function normalizeState(value: unknown, clock: () => number): StoredSettingsState {
   if (!isRecord(value)) {
-    return makeState(defaultSettings);
+    return makeState(defaultSettings, clock());
   }
 
   if (value.version === SETTINGS_VERSION) {
     if (isRecord(value.settings)) {
       return makeState(
         normalizeSettings(value.settings),
-        typeof value.updatedAt === "number" ? value.updatedAt : now(),
+        typeof value.updatedAt === "number" ? value.updatedAt : clock(),
       );
     }
 
     return makeState(
       normalizeSettings(value),
-      typeof value.updatedAt === "number" ? value.updatedAt : now(),
+      typeof value.updatedAt === "number" ? value.updatedAt : clock(),
     );
   }
 
-  return makeState(defaultSettings);
+  return makeState(defaultSettings, clock());
 }
 
 export class SettingsStore {
@@ -235,7 +253,7 @@ export class SettingsStore {
 
   private async readState(): Promise<StoredSettingsState> {
     const stored = await this.adapter.read<unknown>(SETTINGS_STORE_KEY);
-    return stored ? normalizeState(stored) : makeState(defaultSettings);
+    return stored ? normalizeState(stored, now) : makeState(defaultSettings, now());
   }
 
   private async writeState(state: StoredSettingsState): Promise<void> {

@@ -1,6 +1,8 @@
 import type { SessionSnapshot, SessionState, TranscriptSegment } from "../shared/protocol";
 
 export const SESSION_HISTORY_KEY = "ktalk-live-captions.session-history.v1" as const;
+export const DEFAULT_SESSION_HISTORY_MAX_SESSIONS = 100 as const;
+export const DEFAULT_SESSION_HISTORY_MAX_AGE_DAYS = 60 as const;
 
 interface ChromeStorageArea {
   get(
@@ -22,6 +24,18 @@ interface SessionHistoryState {
   sessions: SessionHistoryRecord[];
 }
 
+export interface SessionHistoryExportMetadata {
+  generatedAt: number;
+  sessionId: string;
+  meetingId: string;
+  source: SessionState["source"];
+  startedAt: number | null;
+  endedAt: number | null;
+  durationMs: number | null;
+  segmentCount: number;
+  transcriptUpdatedAt: number | null;
+}
+
 export interface SessionHistoryRecord {
   sessionId: string;
   meetingId: string;
@@ -37,6 +51,7 @@ export interface SessionHistoryRecord {
   lastFinalText: string;
   preview: string;
   transcript: TranscriptSegment[];
+  exportMetadata?: SessionHistoryExportMetadata;
 }
 
 export interface SessionHistoryOptions {
@@ -64,6 +79,18 @@ function now(): number {
   return Date.now();
 }
 
+function cloneStoredValue<T>(value: T): T {
+  const globalScope = globalThis as typeof globalThis & {
+    structuredClone?: <U>(input: U) => U;
+  };
+
+  if (typeof globalScope.structuredClone === "function") {
+    return globalScope.structuredClone(value);
+  }
+
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
 function cloneTranscriptSegment(segment: TranscriptSegment): TranscriptSegment {
   return {
     segmentId: segment.segmentId,
@@ -82,6 +109,7 @@ function cloneTranscriptSegment(segment: TranscriptSegment): TranscriptSegment {
 }
 
 function cloneHistoryRecord(record: SessionHistoryRecord): SessionHistoryRecord {
+  const exportMetadata = getSessionHistoryExportMetadata(record);
   return {
     sessionId: record.sessionId,
     meetingId: record.meetingId,
@@ -97,6 +125,7 @@ function cloneHistoryRecord(record: SessionHistoryRecord): SessionHistoryRecord 
     lastFinalText: record.lastFinalText,
     preview: record.preview,
     transcript: record.transcript.map(cloneTranscriptSegment),
+    exportMetadata,
   };
 }
 
@@ -116,7 +145,8 @@ function createStorageAdapter(): StoreAdapter {
   return {
     async read<T>(key: string): Promise<T | null> {
       if (!area) {
-        return (memory.get(key) as T | undefined) ?? null;
+        const value = memory.get(key);
+        return value === undefined ? null : cloneStoredValue(value as T);
       }
 
       return new Promise((resolve, reject) => {
@@ -131,18 +161,18 @@ function createStorageAdapter(): StoreAdapter {
           }
 
           const value = items[key];
-          resolve((value as T | undefined) ?? null);
+          resolve(value === undefined ? null : cloneStoredValue(value as T));
         });
       });
     },
     async write<T>(key: string, value: T): Promise<void> {
       if (!area) {
-        memory.set(key, value as unknown);
+        memory.set(key, cloneStoredValue(value));
         return;
       }
 
       return new Promise((resolve, reject) => {
-        area.set({ [key]: value as unknown }, () => {
+        area.set({ [key]: cloneStoredValue(value) as unknown }, () => {
           const runtime = (globalThis as typeof globalThis & {
             chrome?: { runtime?: { lastError?: { message?: string } } };
           }).chrome?.runtime;
@@ -159,86 +189,177 @@ function createStorageAdapter(): StoreAdapter {
   };
 }
 
+function resolveString(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function resolveNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function normalizeText(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function segmentFingerprint(segment: TranscriptSegment): string {
+  const timestampBucket = Math.floor(segment.timestamp / 10000);
+  return [
+    segment.sessionId,
+    segment.meetingId,
+    segment.chunkIndex ?? "",
+    segment.sampleRate ?? "",
+    segment.channels ?? "",
+    timestampBucket,
+    normalizeText(segment.text),
+    segment.source,
+    segment.speakerLabel ?? "",
+  ].join("|");
+}
+
+function segmentPriority(status: TranscriptSegment["status"]): number {
+  return status === "final" ? 1 : 0;
+}
+
+function shouldReplaceSegment(existing: TranscriptSegment, incoming: TranscriptSegment): boolean {
+  const existingPriority = segmentPriority(existing.status);
+  const incomingPriority = segmentPriority(incoming.status);
+
+  if (incomingPriority !== existingPriority) {
+    return incomingPriority > existingPriority;
+  }
+
+  return true;
+}
+
+function dedupeSegments(segments: TranscriptSegment[]): TranscriptSegment[] {
+  const indexById = new Map<string, number>();
+  const indexByFingerprint = new Map<string, number>();
+  const ordered: TranscriptSegment[] = [];
+
+  for (const segment of segments) {
+    const idKey = segment.segmentId.length > 0 ? segment.segmentId : null;
+    const fingerprint = segmentFingerprint(segment);
+    const existingIndex =
+      (idKey ? indexById.get(idKey) : undefined) ?? indexByFingerprint.get(fingerprint);
+
+    if (existingIndex !== undefined) {
+      if (shouldReplaceSegment(ordered[existingIndex], segment)) {
+        ordered[existingIndex] = cloneTranscriptSegment(segment);
+      }
+    } else {
+      ordered.push(cloneTranscriptSegment(segment));
+    }
+
+    const nextIndex = existingIndex ?? ordered.length - 1;
+    if (idKey) {
+      indexById.set(idKey, nextIndex);
+    }
+    indexByFingerprint.set(fingerprint, nextIndex);
+  }
+
+  return ordered;
+}
+
+function resolveSessionTimestamp(...values: Array<number | null | undefined>): number | null {
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function buildExportMetadata(
+  sessionId: string,
+  meetingId: string,
+  source: SessionState["source"],
+  startedAt: number | null,
+  endedAt: number | null,
+  segmentCount: number,
+  transcriptUpdatedAt: number | null,
+  generatedAt: number,
+): SessionHistoryExportMetadata {
+  return {
+    generatedAt,
+    sessionId,
+    meetingId,
+    source,
+    startedAt,
+    endedAt,
+    durationMs: startedAt !== null && endedAt !== null ? Math.max(0, endedAt - startedAt) : null,
+    segmentCount,
+    transcriptUpdatedAt,
+  };
+}
+
+function getSessionHistoryExportMetadata(record: SessionHistoryRecord): SessionHistoryExportMetadata {
+  if (record.exportMetadata) {
+    return {
+      generatedAt: record.exportMetadata.generatedAt,
+      sessionId: record.exportMetadata.sessionId,
+      meetingId: record.exportMetadata.meetingId,
+      source: record.exportMetadata.source,
+      startedAt: record.exportMetadata.startedAt,
+      endedAt: record.exportMetadata.endedAt,
+      durationMs: record.exportMetadata.durationMs,
+      segmentCount: record.exportMetadata.segmentCount,
+      transcriptUpdatedAt: record.exportMetadata.transcriptUpdatedAt,
+    };
+  }
+
+  const fallbackTimestamp = resolveSessionTimestamp(record.updatedAt, record.endedAt, record.startedAt, now());
+  return buildExportMetadata(
+    record.sessionId,
+    record.meetingId,
+    record.source,
+    record.startedAt,
+    record.endedAt,
+    record.segmentCount,
+    record.transcriptUpdatedAt,
+    fallbackTimestamp ?? now(),
+  );
+}
+
+function normalizeTranscriptSegment(
+  segment: Record<string, unknown>,
+  clock: () => number,
+): TranscriptSegment {
+  return {
+    segmentId:
+      resolveString(segment.segmentId) ?? `${resolveString(segment.sessionId) ?? `${clock()}`}:${resolveNumber(segment.timestamp) ?? clock()}`,
+    sessionId: resolveString(segment.sessionId) ?? `${resolveNumber(segment.timestamp) ?? clock()}`,
+    meetingId:
+      resolveString(segment.meetingId) ?? resolveString(segment.sessionId) ?? `${resolveNumber(segment.timestamp) ?? clock()}`,
+    status: segment.status === "final" ? "final" : "partial",
+    text: typeof segment.text === "string" ? segment.text : "",
+    timestamp: resolveNumber(segment.timestamp) ?? clock(),
+    chunkIndex: resolveNumber(segment.chunkIndex),
+    sampleRate: resolveNumber(segment.sampleRate),
+    channels: resolveNumber(segment.channels),
+    confidence: resolveNumber(segment.confidence),
+    source: segment.source === "microphone" ? "microphone" : "tab-audio",
+    speakerLabel: typeof segment.speakerLabel === "string" ? segment.speakerLabel : null,
+  };
+}
+
+function resolveSource(
+  value: unknown,
+  transcript: TranscriptSegment[],
+): SessionState["source"] {
+  if (value === "microphone" || value === "tab-audio") {
+    return value;
+  }
+
+  return transcript.find((segment) => segment.source === "microphone" || segment.source === "tab-audio")?.source ?? null;
+}
+
 function sortByRecency(records: SessionHistoryRecord[]): SessionHistoryRecord[] {
   return [...records].sort((a, b) => {
     const left = a.updatedAt ?? a.endedAt ?? a.startedAt ?? 0;
     const right = b.updatedAt ?? b.endedAt ?? b.startedAt ?? 0;
     return right - left;
   });
-}
-
-function normalizeState(state: unknown): SessionHistoryState {
-  if (!isRecord(state) || state.version !== 1 || !Array.isArray(state.sessions)) {
-    return {
-      version: 1,
-      updatedAt: now(),
-      sessions: [],
-    };
-  }
-
-  const sessions = state.sessions
-    .filter(isRecord)
-    .map((entry): SessionHistoryRecord => {
-      const transcript = Array.isArray(entry.transcript)
-        ? entry.transcript.filter(isRecord).map((segment): TranscriptSegment => ({
-            segmentId: typeof segment.segmentId === "string" ? segment.segmentId : "",
-            sessionId: typeof segment.sessionId === "string" ? segment.sessionId : "",
-            meetingId: typeof segment.meetingId === "string" ? segment.meetingId : "",
-            status: segment.status === "final" ? "final" : "partial",
-            text: typeof segment.text === "string" ? segment.text : "",
-            timestamp: typeof segment.timestamp === "number" ? segment.timestamp : now(),
-            chunkIndex: typeof segment.chunkIndex === "number" ? segment.chunkIndex : null,
-            sampleRate: typeof segment.sampleRate === "number" ? segment.sampleRate : null,
-            channels: typeof segment.channels === "number" ? segment.channels : null,
-            confidence: typeof segment.confidence === "number" ? segment.confidence : null,
-            source: segment.source === "microphone" ? "microphone" : "tab-audio",
-            speakerLabel:
-              typeof segment.speakerLabel === "string" ? segment.speakerLabel : null,
-          }))
-        : [];
-
-      return {
-        sessionId: typeof entry.sessionId === "string" ? entry.sessionId : "",
-        meetingId: typeof entry.meetingId === "string" ? entry.meetingId : "",
-        startedAt: typeof entry.startedAt === "number" ? entry.startedAt : null,
-        updatedAt: typeof entry.updatedAt === "number" ? entry.updatedAt : null,
-        endedAt: typeof entry.endedAt === "number" ? entry.endedAt : null,
-        phase:
-          entry.phase === "checking-agent" ||
-          entry.phase === "connecting" ||
-          entry.phase === "listening" ||
-          entry.phase === "reconnecting" ||
-          entry.phase === "finished"
-            ? entry.phase
-            : "idle",
-        transport:
-          entry.transport === "connecting" ||
-          entry.transport === "connected" ||
-          entry.transport === "reconnecting" ||
-          entry.transport === "error"
-            ? entry.transport
-            : "idle",
-        source: entry.source === "microphone" ? "microphone" : entry.source === "tab-audio" ? "tab-audio" : null,
-        segmentCount:
-          typeof entry.segmentCount === "number" && Number.isFinite(entry.segmentCount)
-            ? entry.segmentCount
-            : transcript.length,
-        transcriptUpdatedAt:
-          typeof entry.transcriptUpdatedAt === "number" ? entry.transcriptUpdatedAt : null,
-        currentPartialText:
-          typeof entry.currentPartialText === "string" ? entry.currentPartialText : "",
-        lastFinalText: typeof entry.lastFinalText === "string" ? entry.lastFinalText : "",
-        preview: typeof entry.preview === "string" ? entry.preview : "",
-        transcript,
-      } satisfies SessionHistoryRecord;
-    })
-    .filter((entry) => entry.sessionId.length > 0);
-
-  return {
-    version: 1,
-    updatedAt: typeof state.updatedAt === "number" ? state.updatedAt : now(),
-    sessions,
-  };
 }
 
 function makePreview(snapshot: SessionSnapshot): string {
@@ -264,6 +385,93 @@ function makePreview(snapshot: SessionSnapshot): string {
   return transcript[transcript.length - 1].text.trim();
 }
 
+function normalizeHistoryRecord(entry: Record<string, unknown>, clock: () => number): SessionHistoryRecord | null {
+  const sessionId = resolveString(entry.sessionId);
+  if (!sessionId) {
+    return null;
+  }
+
+  const rawTranscript = Array.isArray(entry.transcript)
+    ? entry.transcript.filter(isRecord).map((segment) => normalizeTranscriptSegment(segment, clock))
+    : [];
+  const transcript = dedupeSegments(rawTranscript);
+  const meetingId = resolveString(entry.meetingId) ?? transcript[0]?.meetingId ?? sessionId;
+  const startedAt = resolveSessionTimestamp(resolveNumber(entry.startedAt), transcript[0]?.timestamp);
+  const transcriptUpdatedAt = resolveSessionTimestamp(
+    resolveNumber(entry.transcriptUpdatedAt),
+    resolveNumber(entry.updatedAt),
+    transcript.at(-1)?.timestamp,
+    startedAt,
+  );
+  const endedAt = resolveSessionTimestamp(resolveNumber(entry.endedAt), transcript.at(-1)?.timestamp, transcriptUpdatedAt);
+  const source = resolveSource(entry.source, transcript);
+  const generatedAt =
+    isRecord(entry.exportMetadata) && resolveNumber(entry.exportMetadata.generatedAt) !== null
+      ? resolveNumber(entry.exportMetadata.generatedAt)!
+      : clock();
+
+  return {
+    sessionId,
+    meetingId,
+    startedAt,
+    updatedAt: resolveNumber(entry.updatedAt) ?? transcriptUpdatedAt,
+    endedAt,
+    phase:
+      entry.phase === "checking-agent" ||
+      entry.phase === "connecting" ||
+      entry.phase === "listening" ||
+      entry.phase === "reconnecting" ||
+      entry.phase === "finished"
+        ? entry.phase
+        : "idle",
+    transport:
+      entry.transport === "connecting" ||
+      entry.transport === "connected" ||
+      entry.transport === "reconnecting" ||
+      entry.transport === "error"
+        ? entry.transport
+        : "idle",
+    source,
+    segmentCount: transcript.length,
+    transcriptUpdatedAt,
+    currentPartialText: typeof entry.currentPartialText === "string" ? entry.currentPartialText : "",
+    lastFinalText: typeof entry.lastFinalText === "string" ? entry.lastFinalText : "",
+    preview: typeof entry.preview === "string" ? entry.preview : "",
+    transcript,
+    exportMetadata: buildExportMetadata(
+      sessionId,
+      meetingId,
+      source,
+      startedAt,
+      endedAt,
+      transcript.length,
+      transcriptUpdatedAt,
+      generatedAt,
+    ),
+  };
+}
+
+function normalizeState(state: unknown, clock: () => number): SessionHistoryState {
+  if (!isRecord(state) || state.version !== 1 || !Array.isArray(state.sessions)) {
+    return {
+      version: 1,
+      updatedAt: clock(),
+      sessions: [],
+    };
+  }
+
+  const sessions = state.sessions
+    .filter(isRecord)
+    .map((entry) => normalizeHistoryRecord(entry, clock))
+    .filter((entry): entry is SessionHistoryRecord => entry !== null);
+
+  return {
+    version: 1,
+    updatedAt: resolveNumber(state.updatedAt) ?? clock(),
+    sessions,
+  };
+}
+
 function makeEmptyState(clock: () => number): SessionHistoryState {
   return {
     version: 1,
@@ -284,13 +492,13 @@ export class SessionHistoryStore {
   constructor(options: SessionHistoryOptions = {}) {
     this.adapter = createStorageAdapter();
     this.clock = options.clock ?? now;
-    this.maxSessions = options.maxSessions ?? 100;
-    this.maxAgeDays = options.maxAgeDays ?? 60;
+    this.maxSessions = options.maxSessions ?? DEFAULT_SESSION_HISTORY_MAX_SESSIONS;
+    this.maxAgeDays = options.maxAgeDays ?? DEFAULT_SESSION_HISTORY_MAX_AGE_DAYS;
   }
 
   private async readState(): Promise<SessionHistoryState> {
     const stored = await this.adapter.read<unknown>(SESSION_HISTORY_KEY);
-    return stored ? normalizeState(stored) : makeEmptyState(this.clock);
+    return stored ? normalizeState(stored, this.clock) : makeEmptyState(this.clock);
   }
 
   private async writeState(state: SessionHistoryState): Promise<void> {
@@ -309,7 +517,39 @@ export class SessionHistoryStore {
         return stamp >= cutoff;
       })
       .slice(0, this.maxSessions)
-      .map(cloneHistoryRecord);
+      .map((entry) => {
+        const transcript = dedupeSegments(entry.transcript);
+        const startedAt = resolveSessionTimestamp(entry.startedAt, transcript[0]?.timestamp);
+        const updatedAt = resolveSessionTimestamp(
+          entry.updatedAt,
+          entry.transcriptUpdatedAt,
+          transcript.at(-1)?.timestamp,
+          startedAt,
+        );
+        const endedAt = resolveSessionTimestamp(entry.endedAt, transcript.at(-1)?.timestamp, updatedAt);
+        const source = resolveSource(entry.source, transcript);
+        const exportMetadata = getSessionHistoryExportMetadata(entry);
+        return {
+          ...cloneHistoryRecord(entry),
+          transcript,
+          startedAt,
+          updatedAt,
+          endedAt,
+          source,
+          segmentCount: transcript.length,
+          transcriptUpdatedAt: updatedAt,
+          exportMetadata: buildExportMetadata(
+            entry.sessionId,
+            entry.meetingId,
+            source,
+            startedAt,
+            endedAt,
+            transcript.length,
+            updatedAt,
+            exportMetadata.generatedAt,
+          ),
+        };
+      });
 
     return {
       version: 1,
@@ -324,21 +564,36 @@ export class SessionHistoryStore {
       return null;
     }
 
+    const transcript = dedupeSegments(snapshot.transcript.map(cloneTranscriptSegment));
+    const startedAt = resolveSessionTimestamp(session.startedAt, transcript[0]?.timestamp);
+    const updatedAt = resolveSessionTimestamp(session.updatedAt, transcript.at(-1)?.timestamp, startedAt);
+    const endedAt = resolveSessionTimestamp(session.endedAt, transcript.at(-1)?.timestamp, updatedAt);
+    const source = resolveSource(session.source, transcript);
     const record: SessionHistoryRecord = {
       sessionId: session.sessionId,
       meetingId: session.meetingId,
-      startedAt: session.startedAt,
-      updatedAt: session.updatedAt,
-      endedAt: session.endedAt,
+      startedAt,
+      updatedAt,
+      endedAt,
       phase: session.phase,
       transport: session.transport,
-      source: session.source,
-      segmentCount: session.segmentCount,
-      transcriptUpdatedAt: session.transcriptUpdatedAt,
+      source,
+      segmentCount: transcript.length,
+      transcriptUpdatedAt: session.transcriptUpdatedAt ?? updatedAt,
       currentPartialText: session.currentPartialText,
       lastFinalText: session.lastFinalText,
-      preview: makePreview(snapshot),
-      transcript: snapshot.transcript.map(cloneTranscriptSegment),
+      preview: makePreview({ protocolVersion: snapshot.protocolVersion, session, transcript }),
+      transcript,
+      exportMetadata: buildExportMetadata(
+        session.sessionId,
+        session.meetingId,
+        source,
+        startedAt,
+        endedAt,
+        transcript.length,
+        session.transcriptUpdatedAt ?? updatedAt,
+        this.clock(),
+      ),
     };
 
     const state = await this.readState();
